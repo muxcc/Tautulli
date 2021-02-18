@@ -1017,6 +1017,7 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
         'labels': ', '.join(notify_params['labels']),
         'collections': ', '.join(notify_params['collections']),
         'summary': notify_params['summary'],
+        'summary_short' : notify_params['summary'][:390]+" ...",
         'tagline': notify_params['tagline'],
         'rating': rating,
         'critic_rating':  critic_rating,
