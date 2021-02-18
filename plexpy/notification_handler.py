@@ -604,7 +604,9 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
 
     # Check external guids
     for guid in notify_params['guids']:
-        if 'imdb://' in guid:
+        if 'kinopoisk2://' in guid:
+            notify_params['kinopoisk_id'] = guid.split('kinopoisk2://')[1]
+        elif 'imdb://' in guid:
             notify_params['imdb_id'] = guid.split('imdb://')[1]
         elif 'tmdb://' in guid:
             notify_params['themoviedb_id'] = guid.split('tmdb://')[1]
@@ -614,6 +616,11 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
     # Get media IDs from guid and build URLs
     if 'plex://' in notify_params['guid']:
         notify_params['plex_id'] = notify_params['guid'].split('plex://')[1].split('/')[1]
+
+    if 'kinopoisk2://' in notify_params['guid'] or notify_params['kinopoisk_id']:
+        notify_params['kinopoisk_id'] = notify_params['kinopoisk_id'] or notify_params['guid'].split('kinopoisk2://')[1].split('?')[0]
+        notify_params['kinopoisk_url'] = 'https://www.kinopoisk.ru/film/' + notify_params['kinopoisk_id']
+        notify_params['trakt_url'] = 'https://trakt.tv/search/kinopoisk/' + notify_params['kinopoisk_id']
 
     if 'imdb://' in notify_params['guid'] or notify_params['imdb_id']:
         notify_params['imdb_id'] = notify_params['imdb_id'] or notify_params['guid'].split('imdb://')[1].split('?')[0]
@@ -1028,6 +1035,8 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
         'poster_url': notify_params['poster_url'],
         'plex_id': notify_params['plex_id'],
         'plex_url': notify_params['plex_url'],
+        'kinopoisk_id': notify_params['kinopoisk_id'],
+        'kinopoisk_url': notify_params['kinopoisk_url'],
         'imdb_id': notify_params['imdb_id'],
         'imdb_url': notify_params['imdb_url'],
         'thetvdb_id': notify_params['thetvdb_id'],
