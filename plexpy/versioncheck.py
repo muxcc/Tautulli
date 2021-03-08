@@ -223,10 +223,11 @@ def check_github(scheduler=False, notify=False, use_cache=False):
     commits = github_cache('commits', use_cache=use_cache)
     if not commits:
         logger.info('Comparing currently installed version with latest GitHub version')
+        # Need to compare CURRENT << LATEST to get a list of commits
         url = 'https://api.github.com/repos/%s/%s/compare/%s...%s' % (plexpy.CONFIG.GIT_USER,
                                                                       plexpy.CONFIG.GIT_REPO,
-                                                                      plexpy.LATEST_VERSION,
-                                                                      plexpy.CURRENT_VERSION)
+                                                                      plexpy.CURRENT_VERSION,
+                                                                      plexpy.LATEST_VERSION)
         commits = request.request_json(url, headers=headers, timeout=20, whitelist_status_code=404,
                                        validator=lambda x: type(x) == dict)
         github_cache('commits', github_data=commits)
@@ -236,8 +237,20 @@ def check_github(scheduler=False, notify=False, use_cache=False):
         return plexpy.LATEST_VERSION
 
     try:
-        plexpy.COMMITS_BEHIND = int(commits['behind_by'])
-        logger.debug("In total, %d commits behind", plexpy.COMMITS_BEHIND)
+        ahead_by = int(commits['ahead_by'])
+        logger.debug("In total, %d commits behind", ahead_by)
+
+        # Do not count [skip ci] commits for Docker or Snap on the nightly branch
+        if (plexpy.DOCKER or plexpy.SNAP) and plexpy.CONFIG.GIT_BRANCH == 'nightly':
+            for commit in reversed(commits['commits']):
+                if '[skip ci]' not in commit['commit']['message']:
+                    plexpy.LATEST_VERSION = commit['sha']
+                    break
+                ahead_by -= 1
+            install = 'Docker container' if plexpy.DOCKER else 'Snap package'
+            logger.debug("%s %d commits behind", install, ahead_by)
+
+        plexpy.COMMITS_BEHIND = ahead_by
     except KeyError:
         logger.info('Cannot compare versions. Are you running a local development version?')
         plexpy.COMMITS_BEHIND = 0
@@ -278,8 +291,7 @@ def check_github(scheduler=False, notify=False, use_cache=False):
             logger.warn('Tautulli is running using Python 2. Unable to run automatic update.')
 
         elif scheduler and plexpy.CONFIG.PLEXPY_AUTO_UPDATE and \
-                not plexpy.DOCKER and not plexpy.SNAP and \
-                not (plexpy.FROZEN and common.PLATFORM == 'Darwin'):
+                not plexpy.DOCKER and not plexpy.SNAP and not plexpy.FROZEN:
             logger.info('Running automatic update.')
             plexpy.shutdown(restart=True, update=True)
 
@@ -297,14 +309,8 @@ def update():
     if not plexpy.UPDATE_AVAILABLE:
         return
 
-    if plexpy.INSTALL_TYPE in ('docker', 'snap', 'macos'):
+    if plexpy.INSTALL_TYPE in ('docker', 'snap', 'windows', 'macos'):
         return
-
-    elif plexpy.INSTALL_TYPE == 'windows':
-        logger.info('Calling Windows scheduled task to update Tautulli')
-        CREATE_NO_WINDOW = 0x08000000
-        subprocess.Popen(['SCHTASKS', '/Run', '/TN', 'TautulliUpdateTask'],
-                         creationflags=CREATE_NO_WINDOW)
 
     elif plexpy.INSTALL_TYPE == 'git':
         output, err = runGit('pull --ff-only {} {}'.format(plexpy.CONFIG.GIT_REMOTE,

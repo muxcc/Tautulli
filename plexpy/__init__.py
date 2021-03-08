@@ -53,6 +53,7 @@ if PYTHON2:
     import newsletter_handler
     import notification_handler
     import notifiers
+    import plex
     import plextv
     import users
     import versioncheck
@@ -73,6 +74,7 @@ else:
     from plexpy import newsletter_handler
     from plexpy import notification_handler
     from plexpy import notifiers
+    from plexpy import plex
     from plexpy import plextv
     from plexpy import users
     from plexpy import versioncheck
@@ -206,6 +208,11 @@ def initialize(config_file):
         logger.initLogger(console=not QUIET, log_dir=CONFIG.LOG_DIR if log_writable else None,
                           verbose=VERBOSE)
 
+        if not PYTHON2:
+            os.environ['PLEXAPI_CONFIG_PATH'] = os.path.join(DATA_DIR, 'plexapi.config.ini')
+            os.environ['PLEXAPI_LOG_PATH'] = os.path.join(CONFIG.LOG_DIR, 'plexapi.log')
+            plex.initialize_plexapi()
+
         if DOCKER:
             build = '[Docker] '
         elif SNAP:
@@ -295,8 +302,6 @@ def initialize(config_file):
             except IOError as e:
                 logger.error("Unable to read previous version from file '%s': %s" %
                              (version_lock_file, e))
-        else:
-            prev_version = 'cfd30996264b7e9fe4ef87f02d1cc52d1ae8bfca'
 
         # Get the currently installed version. Returns None, 'win32' or the git
         # hash.
@@ -333,8 +338,6 @@ def initialize(config_file):
             except IOError as e:
                 logger.error("Unable to read previous release from file '%s': %s" %
                              (release_file, e))
-        elif prev_version == 'cfd30996264b7e9fe4ef87f02d1cc52d1ae8bfca':  # Commit hash for v1.4.25
-            PREV_RELEASE = 'v1.4.25'
 
         # Check if the release was updated
         if common.RELEASE != PREV_RELEASE:
@@ -613,13 +616,14 @@ def dbcheck():
         'video_codec TEXT, video_bitrate INTEGER, video_resolution TEXT, video_width INTEGER, video_height INTEGER, '
         'video_framerate TEXT, video_scan_type TEXT, video_full_resolution TEXT, '
         'video_dynamic_range TEXT, aspect_ratio TEXT, '
-        'audio_codec TEXT, audio_bitrate INTEGER, audio_channels INTEGER, subtitle_codec TEXT, '
-        'stream_bitrate INTEGER, stream_video_resolution TEXT, quality_profile TEXT, '
+        'audio_codec TEXT, audio_bitrate INTEGER, audio_channels INTEGER, audio_language TEXT, audio_language_code TEXT, '
+        'subtitle_codec TEXT, stream_bitrate INTEGER, stream_video_resolution TEXT, quality_profile TEXT, '
         'stream_container_decision TEXT, stream_container TEXT, '
         'stream_video_decision TEXT, stream_video_codec TEXT, stream_video_bitrate INTEGER, stream_video_width INTEGER, '
         'stream_video_height INTEGER, stream_video_framerate TEXT, stream_video_scan_type TEXT, stream_video_full_resolution TEXT, '
         'stream_video_dynamic_range TEXT, '
         'stream_audio_decision TEXT, stream_audio_codec TEXT, stream_audio_bitrate INTEGER, stream_audio_channels INTEGER, '
+        'stream_audio_language TEXT, stream_audio_language_code TEXT, '
         'subtitles INTEGER, stream_subtitle_decision TEXT, stream_subtitle_codec TEXT, '
         'transcode_protocol TEXT, transcode_container TEXT, '
         'transcode_video_codec TEXT, transcode_audio_codec TEXT, transcode_audio_channels INTEGER,'
@@ -656,8 +660,8 @@ def dbcheck():
         'container TEXT, bitrate INTEGER, width INTEGER, height INTEGER, video_bitrate INTEGER, video_bit_depth INTEGER, '
         'video_codec TEXT, video_codec_level TEXT, video_width INTEGER, video_height INTEGER, video_resolution TEXT, '
         'video_framerate TEXT, video_scan_type TEXT, video_full_resolution TEXT, video_dynamic_range TEXT, aspect_ratio TEXT, '
-        'audio_bitrate INTEGER, audio_codec TEXT, audio_channels INTEGER, transcode_protocol TEXT, '
-        'transcode_container TEXT, transcode_video_codec TEXT, transcode_audio_codec TEXT, '
+        'audio_bitrate INTEGER, audio_codec TEXT, audio_channels INTEGER, audio_language TEXT, audio_language_code TEXT, '
+        'transcode_protocol TEXT, transcode_container TEXT, transcode_video_codec TEXT, transcode_audio_codec TEXT, '
         'transcode_audio_channels INTEGER, transcode_width INTEGER, transcode_height INTEGER, '
         'transcode_hw_requested INTEGER, transcode_hw_full_pipeline INTEGER, '
         'transcode_hw_decode TEXT, transcode_hw_decode_title TEXT, transcode_hw_decoding INTEGER, '
@@ -667,6 +671,7 @@ def dbcheck():
         'stream_video_bit_depth INTEGER, stream_video_height INTEGER, stream_video_width INTEGER, stream_video_resolution TEXT, '
         'stream_video_framerate TEXT, stream_video_scan_type TEXT, stream_video_full_resolution TEXT, stream_video_dynamic_range TEXT, '
         'stream_audio_decision TEXT, stream_audio_codec TEXT, stream_audio_bitrate INTEGER, stream_audio_channels INTEGER, '
+        'stream_audio_language TEXT, stream_audio_language_code TEXT, '
         'stream_subtitle_decision TEXT, stream_subtitle_codec TEXT, stream_subtitle_container TEXT, stream_subtitle_forced INTEGER, '
         'subtitles INTEGER, subtitle_codec TEXT, synced_version INTEGER, synced_version_profile TEXT, '
         'optimized_version INTEGER, optimized_version_profile TEXT, optimized_version_title TEXT)'
@@ -1324,6 +1329,24 @@ def dbcheck():
             'ALTER TABLE sessions ADD COLUMN initial_stream INTEGER DEFAULT 1'
         )
 
+    # Upgrade sessions table from earlier versions
+    try:
+        c_db.execute('SELECT audio_language FROM sessions')
+    except sqlite3.OperationalError:
+        logger.debug(u"Altering database. Updating database table sessions.")
+        c_db.execute(
+            'ALTER TABLE sessions ADD COLUMN audio_language TEXT'
+        )
+        c_db.execute(
+            'ALTER TABLE sessions ADD COLUMN audio_language_code TEXT'
+        )
+        c_db.execute(
+            'ALTER TABLE sessions ADD COLUMN stream_audio_language TEXT'
+        )
+        c_db.execute(
+            'ALTER TABLE sessions ADD COLUMN stream_audio_language_code TEXT'
+        )
+
     # Upgrade session_history table from earlier versions
     try:
         c_db.execute('SELECT reference_id FROM session_history')
@@ -1602,7 +1625,7 @@ def dbcheck():
     except sqlite3.OperationalError:
         logger.debug("Altering database. Updating database table session_history_media_info.")
         c_db.execute(
-            'ALTER TABLE session_history_media_info ADD COLUMN subtitle_codec TEXT '
+            'ALTER TABLE session_history_media_info ADD COLUMN subtitle_codec TEXT'
         )
 
     # Upgrade session_history_media_info table from earlier versions
@@ -1611,10 +1634,10 @@ def dbcheck():
     except sqlite3.OperationalError:
         logger.debug("Altering database. Updating database table session_history_media_info.")
         c_db.execute(
-            'ALTER TABLE session_history_media_info ADD COLUMN synced_version_profile TEXT '
+            'ALTER TABLE session_history_media_info ADD COLUMN synced_version_profile TEXT'
         )
         c_db.execute(
-            'ALTER TABLE session_history_media_info ADD COLUMN optimized_version_title TEXT '
+            'ALTER TABLE session_history_media_info ADD COLUMN optimized_version_title TEXT'
         )
 
     # Upgrade session_history_media_info table from earlier versions
@@ -1623,13 +1646,13 @@ def dbcheck():
     except sqlite3.OperationalError:
         logger.debug("Altering database. Updating database table session_history_media_info.")
         c_db.execute(
-            'ALTER TABLE session_history_media_info ADD COLUMN transcode_hw_decoding INTEGER '
+            'ALTER TABLE session_history_media_info ADD COLUMN transcode_hw_decoding INTEGER'
         )
         c_db.execute(
-            'ALTER TABLE session_history_media_info ADD COLUMN transcode_hw_encoding INTEGER '
+            'ALTER TABLE session_history_media_info ADD COLUMN transcode_hw_encoding INTEGER'
         )
         c_db.execute(
-            'UPDATE session_history_media_info SET subtitle_codec = "" WHERE subtitle_codec IS NULL '
+            'UPDATE session_history_media_info SET subtitle_codec = "" WHERE subtitle_codec IS NULL'
         )
 
     # Upgrade session_history_media_info table from earlier versions
@@ -1639,16 +1662,16 @@ def dbcheck():
         if len(result) > 0:
             logger.debug("Altering database. Removing NULL values from session_history_media_info table.")
             c_db.execute(
-                'UPDATE session_history_media_info SET stream_container = "" WHERE stream_container IS NULL '
+                'UPDATE session_history_media_info SET stream_container = "" WHERE stream_container IS NULL'
             )
             c_db.execute(
-                'UPDATE session_history_media_info SET stream_video_codec = "" WHERE stream_video_codec IS NULL '
+                'UPDATE session_history_media_info SET stream_video_codec = "" WHERE stream_video_codec IS NULL'
             )
             c_db.execute(
-                'UPDATE session_history_media_info SET stream_audio_codec = "" WHERE stream_audio_codec IS NULL '
+                'UPDATE session_history_media_info SET stream_audio_codec = "" WHERE stream_audio_codec IS NULL'
             )
             c_db.execute(
-                'UPDATE session_history_media_info SET stream_subtitle_codec = "" WHERE stream_subtitle_codec IS NULL '
+                'UPDATE session_history_media_info SET stream_subtitle_codec = "" WHERE stream_subtitle_codec IS NULL'
             )
     except sqlite3.OperationalError:
         logger.warn("Unable to remove NULL values from session_history_media_info table.")
@@ -1698,10 +1721,10 @@ def dbcheck():
     except sqlite3.OperationalError:
         logger.debug("Altering database. Updating database table session_history_media_info.")
         c_db.execute(
-            'ALTER TABLE session_history_media_info ADD COLUMN video_dynamic_range TEXT '
+            'ALTER TABLE session_history_media_info ADD COLUMN video_dynamic_range TEXT'
         )
         c_db.execute(
-            'ALTER TABLE session_history_media_info ADD COLUMN stream_video_dynamic_range TEXT '
+            'ALTER TABLE session_history_media_info ADD COLUMN stream_video_dynamic_range TEXT'
         )
 
     result = c_db.execute('SELECT * FROM session_history_media_info '
@@ -1711,7 +1734,25 @@ def dbcheck():
             'UPDATE session_history_media_info SET stream_video_dynamic_range = "SDR" '
             'WHERE video_dynamic_range = "SDR" AND stream_video_dynamic_range = "HDR"'
         )
-
+    
+    # Upgrade session_history_media_info table from earlier versions
+    try:
+        c_db.execute('SELECT audio_language FROM session_history_media_info')
+    except sqlite3.OperationalError:
+        logger.debug("Altering database. Updating database table session_history_media_info.")
+        c_db.execute(
+            'ALTER TABLE session_history_media_info ADD COLUMN audio_language TEXT'
+        )
+        c_db.execute(
+            'ALTER TABLE session_history_media_info ADD COLUMN audio_language_code TEXT'
+        )
+        c_db.execute(
+            'ALTER TABLE session_history_media_info ADD COLUMN stream_audio_language TEXT'
+        )
+        c_db.execute(
+            'ALTER TABLE session_history_media_info ADD COLUMN stream_audio_language_code TEXT'
+        ) 
+    
     # Upgrade users table from earlier versions
     try:
         c_db.execute('SELECT do_notify FROM users')
@@ -2295,12 +2336,7 @@ def upgrade():
     return
 
 
-def shutdown(restart=False, update=False, checkout=False, reset=False,
-             _shutdown=True):
-    if FROZEN and common.PLATFORM == 'Windows' and update:
-        restart = False
-        _shutdown = False
-
+def shutdown(restart=False, update=False, checkout=False, reset=False):
     webstart.stop()
 
     # Shutdown the websocket connection
@@ -2373,15 +2409,14 @@ def shutdown(restart=False, update=False, checkout=False, reset=False,
     else:
         logger.info("Tautulli is shutting down...")
 
-    if _shutdown:
-        logger.shutdown()
+    logger.shutdown()
 
-        if WIN_SYS_TRAY_ICON:
-            WIN_SYS_TRAY_ICON.shutdown()
-        elif MAC_SYS_TRAY_ICON:
-            MAC_SYS_TRAY_ICON.shutdown()
+    if WIN_SYS_TRAY_ICON:
+        WIN_SYS_TRAY_ICON.shutdown()
+    elif MAC_SYS_TRAY_ICON:
+        MAC_SYS_TRAY_ICON.shutdown()
 
-        os._exit(0)
+    os._exit(0)
 
 
 def generate_uuid():

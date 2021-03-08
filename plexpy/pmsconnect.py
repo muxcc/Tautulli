@@ -113,7 +113,7 @@ class PmsConnect(object):
 
         return request
 
-    def get_sessions_terminate(self, session_id='', reason='', output_format=''):
+    def get_sessions_terminate(self, session_id='', reason=''):
         """
         Return current sessions.
 
@@ -124,7 +124,7 @@ class PmsConnect(object):
         uri = '/status/sessions/terminate?sessionId=%s&reason=%s' % (session_id, quote_plus(reason))
         request = self.request_handler.make_request(uri=uri,
                                                     request_type='GET',
-                                                    output_format=output_format)
+                                                    return_response=True)
 
         return request
 
@@ -925,7 +925,7 @@ class PmsConnect(object):
                         'parent_rating_key': parent_rating_key,
                         'grandparent_rating_key': helpers.get_xml_attr(metadata_main, 'grandparentRatingKey'),
                         'title': helpers.get_xml_attr(metadata_main, 'title'),
-                        'parent_title': 'Season %s' % helpers.get_xml_attr(metadata_main, 'parentIndex'),
+                        'parent_title': helpers.get_xml_attr(metadata_main, 'parentTitle'),
                         'grandparent_title': helpers.get_xml_attr(metadata_main, 'grandparentTitle'),
                         'original_title': helpers.get_xml_attr(metadata_main, 'originalTitle'),
                         'sort_title': helpers.get_xml_attr(metadata_main, 'titleSort'),
@@ -2247,8 +2247,6 @@ class PmsConnect(object):
     def terminate_session(self, session_key='', session_id='', message=''):
         """
         Terminates a streaming session.
-
-        Output: bool
         """
         plex_tv = plextv.PlexTV()
         if not plex_tv.get_plexpass_status():
@@ -2280,8 +2278,8 @@ class PmsConnect(object):
 
         if session_id:
             logger.info("Tautulli Pmsconnect :: Terminating session %s (session_id %s)." % (session_key, session_id))
-            result = self.get_sessions_terminate(session_id=session_id, reason=message)
-            return True
+            response = self.get_sessions_terminate(session_id=session_id, reason=message)
+            return response.ok
         else:
             msg = 'Missing session_id'
             logger.warn("Tautulli Pmsconnect :: Failed to terminate session: %s." % msg)

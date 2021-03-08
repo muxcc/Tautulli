@@ -364,10 +364,10 @@ class WebInterface(object):
         pms_connect = pmsconnect.PmsConnect()
         result = pms_connect.terminate_session(session_key=session_key, session_id=session_id, message=message)
 
-        if result is True:
-            return {'result': 'success', 'message': 'Session terminated.'}
-        elif result:
+        if isinstance(result, str):
             return {'result': 'error', 'message': 'Failed to terminate session: {}.'.format(result)}
+        elif result is True:
+            return {'result': 'success', 'message': 'Session terminated.'}
         else:
             return {'result': 'error', 'message': 'Failed to terminate session.'}
 
@@ -1998,6 +1998,8 @@ class WebInterface(object):
                     {"aspect_ratio": "2.35",
                      "audio_bitrate": 231,
                      "audio_channels": 6,
+                     "audio_language": "English",
+                     "audio_language_code": "eng",
                      "audio_codec": "aac",
                      "audio_decision": "transcode",
                      "bitrate": 2731,
@@ -2013,6 +2015,8 @@ class WebInterface(object):
                      "quality_profile": "1.5 Mbps 480p",
                      "stream_audio_bitrate": 203,
                      "stream_audio_channels": 2,
+                     "stream_audio_language": "English",
+                     "stream_audio_language_code", "eng",
                      "stream_audio_codec": "aac",
                      "stream_audio_decision": "transcode",
                      "stream_bitrate": 730,
@@ -2669,7 +2673,10 @@ class WebInterface(object):
         if client_id and sync_id:
             plex_tv = plextv.PlexTV()
             delete_row = plex_tv.delete_sync(client_id=client_id, sync_id=sync_id)
-            return {'result': 'success', 'message': 'Synced item deleted successfully.'}
+            if delete_row:
+                return {'result': 'success', 'message': 'Synced item deleted successfully.'}
+            else:
+                return {'result': 'error', 'message': 'Failed to delete synced item.'}
         else:
             return {'result': 'error', 'message': 'Missing client ID and sync ID.'}
 
@@ -4658,11 +4665,15 @@ class WebInterface(object):
             else:
                 img = '/library/metadata/{}/thumb'.format(rating_key)
 
-        if img.startswith('/library/metadata'):
-            parts = 6 if 'composite' in img else 5
+        if img:
+            parts = 5
+            if img.startswith('/playlists'):
+                parts -= 1
+            rating_key_idx = parts - 2
+            parts += int('composite' in img)
             img_split = img.split('/')
             img = '/'.join(img_split[:parts])
-            img_rating_key = img_split[3]
+            img_rating_key = img_split[rating_key_idx]
             if rating_key != img_rating_key:
                 rating_key = img_rating_key
 
@@ -4693,6 +4704,7 @@ class WebInterface(object):
             # the image does not exist, download it from pms
             try:
                 pms_connect = pmsconnect.PmsConnect()
+                pms_connect.request_handler._silent = True
                 result = pms_connect.get_image(img=img,
                                                width=width,
                                                height=height,
@@ -5953,9 +5965,10 @@ class WebInterface(object):
 
             ```
             Required parameters:
-                machine_id (str):       The PMS identifier
+                None
 
             Optional parameters:
+                machine_id (str):       The PMS identifier
                 user_id (str):          The id of the Plex user
 
             Returns:
@@ -5976,6 +5989,7 @@ class WebInterface(object):
                       "root_title": "Movies",
                       "state": "complete",
                       "sync_id": "11617019",
+                      "sync_media_type": null,
                       "sync_title": "Deadpool",
                       "total_size": "560718134",
                       "user": "DrukenDwarfMan",
