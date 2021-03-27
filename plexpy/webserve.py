@@ -3804,12 +3804,12 @@ class WebInterface(object):
     @requireAuth(member_of("admin"))
     def verify_mobile_device(self, device_token='', cancel=False, **kwargs):
         if helpers.bool_true(cancel):
-            mobile_app.set_temp_device_token(None)
+            mobile_app.set_temp_device_token(device_token, remove=True)
             return {'result': 'error', 'message': 'Device registration cancelled.'}
 
-        result = mobile_app.get_temp_device_token()
+        result = mobile_app.get_temp_device_token(device_token)
         if result is True:
-            mobile_app.set_temp_device_token(None)
+            mobile_app.set_temp_device_token(device_token, remove=True)
             return {'result': 'success', 'message': 'Device registered successfully.', 'data': result}
         else:
             return {'result': 'error', 'message': 'Device not registered.'}
@@ -4254,7 +4254,7 @@ class WebInterface(object):
         logger._BLACKLIST_WORDS.add(apikey)
 
         if helpers.bool_true(device):
-            mobile_app.set_temp_device_token(apikey)
+            mobile_app.set_temp_device_token(apikey, add=True)
 
         return apikey
 
@@ -4665,7 +4665,7 @@ class WebInterface(object):
             else:
                 img = '/library/metadata/{}/thumb'.format(rating_key)
 
-        if img:
+        if img and not img.startswith('http'):
             parts = 5
             if img.startswith('/playlists'):
                 parts -= 1
@@ -6044,7 +6044,7 @@ class WebInterface(object):
                 stats_start (int)       The row number of the stat item to start at, 0
                 stats_count (int):      The number of stat items to return, 5
                 stat_id (str):          A single stat to return, 'top_movies', 'popular_movies',
-                                        'top_tv', 'popular_tv', 'top_music', 'popular_music',
+                                        'top_tv', 'popular_tv', 'top_music', 'popular_music', 'top_libraries',
                                         'top_users', 'top_platforms', 'last_watched', 'most_concurrent'
 
             Returns:
@@ -6094,6 +6094,10 @@ class WebInterface(object):
                       "rows": [{...}]
                       },
                      {"stat_id": "last_watched",
+                      "rows": [{...}]
+                      },
+                     {"stat_id": "top_libraries",
+                      "stat_type": "total_plays",
                       "rows": [{...}]
                       },
                      {"stat_id": "top_users",

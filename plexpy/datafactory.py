@@ -29,11 +29,13 @@ if plexpy.PYTHON2:
     import common
     import database
     import datatables
+    import libraries
     import helpers
     import logger
     import pmsconnect
     import session
 else:
+    from plexpy import libraries
     from plexpy import common
     from plexpy import database
     from plexpy import datatables
@@ -307,6 +309,8 @@ class DataFactory(object):
                        stats_start=0, stats_count=10, stat_id='', stats_cards=None):
         monitor_db = database.MonitorDatabase()
 
+        stats_start = helpers.cast_to_int(stats_start)
+        stats_count = helpers.cast_to_int(stats_count)
         if stat_id:
             stats_cards = [stat_id]
         if grouping is None:
@@ -354,6 +358,7 @@ class DataFactory(object):
                            'total_duration': item['total_duration'],
                            'users_watched': '',
                            'rating_key': item['rating_key'],
+                           'grandparent_rating_key': '',
                            'last_play': item['last_watch'],
                            'grandparent_thumb': '',
                            'thumb': item['thumb'],
@@ -405,6 +410,7 @@ class DataFactory(object):
                            'year': item['year'],
                            'users_watched': item['users_watched'],
                            'rating_key': item['rating_key'],
+                           'grandparent_rating_key': '',
                            'last_play': item['last_watch'],
                            'total_plays': item['total_plays'],
                            'grandparent_thumb': '',
@@ -457,6 +463,7 @@ class DataFactory(object):
                            'total_duration': item['total_duration'],
                            'users_watched': '',
                            'rating_key': item['rating_key'] if item['live'] else item['grandparent_rating_key'],
+                           'grandparent_rating_key': item['grandparent_rating_key'],
                            'last_play': item['last_watch'],
                            'grandparent_thumb': item['grandparent_thumb'],
                            'thumb': item['grandparent_thumb'],
@@ -508,6 +515,7 @@ class DataFactory(object):
                            'year': item['year'],
                            'users_watched': item['users_watched'],
                            'rating_key': item['rating_key'] if item['live'] else item['grandparent_rating_key'],
+                           'grandparent_rating_key': item['grandparent_rating_key'],
                            'last_play': item['last_watch'],
                            'total_plays': item['total_plays'],
                            'grandparent_thumb': item['grandparent_thumb'],
@@ -561,6 +569,7 @@ class DataFactory(object):
                            'total_duration': item['total_duration'],
                            'users_watched': '',
                            'rating_key': item['grandparent_rating_key'],
+                           'grandparent_rating_key': item['grandparent_rating_key'],
                            'last_play': item['last_watch'],
                            'grandparent_thumb': item['grandparent_thumb'],
                            'thumb': item['grandparent_thumb'],
@@ -613,6 +622,7 @@ class DataFactory(object):
                            'year': item['year'],
                            'users_watched': item['users_watched'],
                            'rating_key': item['grandparent_rating_key'],
+                           'grandparent_rating_key': item['grandparent_rating_key'],
                            'last_play': item['last_watch'],
                            'total_plays': item['total_plays'],
                            'grandparent_thumb': item['grandparent_thumb'],
@@ -634,6 +644,79 @@ class DataFactory(object):
                 home_stats.append({'stat_id': stat,
                                    'stat_title': 'Most Popular Artists',
                                    'rows': session.mask_session_info(popular_music)})
+
+            elif stat == 'top_libraries':
+                top_libraries = []
+
+                try:
+                    query = 'SELECT section_id, section_name, section_type, thumb AS library_thumb, ' \
+                            'custom_thumb_url AS custom_thumb, art AS library_art, custom_art_url AS custom_art ' \
+                            'FROM library_sections ' \
+                            'WHERE deleted_section = 0'
+
+                    result = monitor_db.select(query)
+                except Exception as e:
+                    logger.warn("Tautulli DataFactory :: Unable to execute database query for get_home_stats: top_libraries: %s." % e)
+                    return None
+
+                library_data = libraries.Libraries()
+
+                for item in result:
+                    library_item = library_data.get_watch_time_stats(section_id=item['section_id'],
+                                                                     grouping=grouping,
+                                                                     query_days=time_range)
+
+                    if not library_item or library_item[0]['total_plays'] == 0 and library_item[0]['total_time'] == 0:
+                        continue
+
+                    library_watched = library_data.get_recently_watched(section_id=item['section_id'],
+                                                                        limit='1')
+                    last_play = library_watched[0]['time'] if library_watched else 0
+
+                    if item['custom_thumb'] and item['custom_thumb'] != item['library_thumb']:
+                        library_thumb = item['custom_thumb']
+                    elif item['library_thumb']:
+                        library_thumb = item['library_thumb']
+                    else:
+                        library_thumb = common.DEFAULT_COVER_THUMB
+
+                    if item['custom_art'] and item['custom_art'] != item['library_art']:
+                        library_art = item['custom_art']
+                    else:
+                        library_art = item['library_art']
+
+                    row = {
+                        'total_plays': library_item[0]['total_plays'],
+                        'total_duration': library_item[0]['total_time'],
+                        'section_type': item['section_type'],
+                        'section_name': item['section_name'],
+                        'section_id': item['section_id'],
+                        'last_play': last_play,
+                        'thumb': library_thumb,
+                        'grandparent_thumb': '',
+                        'art': library_art,
+                        'user': '',
+                        'friendly_name': '',
+                        'users_watched': '',
+                        'rating_key': '',
+                        'grandparent_rating_key': '',
+                        'title': '',
+                        'platform': '',
+                        'row_id': ''
+                    }
+
+                    top_libraries.append(row)
+
+                home_stats.append({
+                    'stat_id': stat,
+                    'stat_type': sort_type,
+                    'stat_title': 'Most Active Libraries',
+                    'rows': session.mask_session_info(
+                        sorted(top_libraries,
+                               key=lambda k: k[sort_type],
+                               reverse=True)[stats_start:stats_start + stats_count],
+                        mask_metadata=False)
+                })
 
             elif stat == 'top_users':
                 top_users = []
@@ -678,6 +761,7 @@ class DataFactory(object):
                            'art': '',
                            'users_watched': '',
                            'rating_key': '',
+                           'grandparent_rating_key': '',
                            'title': '',
                            'platform': '',
                            'row_id': ''
@@ -727,6 +811,7 @@ class DataFactory(object):
                            'art': '',
                            'users_watched': '',
                            'rating_key': '',
+                           'grandparent_rating_key': '',
                            'user': '',
                            'friendly_name': '',
                            'row_id': ''
@@ -743,7 +828,7 @@ class DataFactory(object):
                 try:
                     query = 'SELECT t.id, t.title, t.grandparent_title, t.full_title, t.year, ' \
                             't.media_index, t.parent_media_index, ' \
-                            't.rating_key, t.thumb, t.grandparent_thumb, ' \
+                            't.rating_key, t.grandparent_rating_key, t.thumb, t.grandparent_thumb, ' \
                             't.user, t.user_id, t.custom_avatar_url as user_thumb, t.player, t.section_id, ' \
                             't.art, t.media_type, t.content_rating, t.labels, t.live, t.guid, ' \
                             '(CASE WHEN t.friendly_name IS NULL THEN t.username ELSE t.friendly_name END) ' \
@@ -789,6 +874,7 @@ class DataFactory(object):
                            'media_index': item['media_index'],
                            'parent_media_index': item['parent_media_index'],
                            'rating_key': item['rating_key'],
+                           'grandparent_rating_key': item['grandparent_rating_key'],
                            'thumb': thumb,
                            'grandparent_thumb': item['grandparent_thumb'],
                            'art': item['art'],

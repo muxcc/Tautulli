@@ -1,4 +1,4 @@
-<%
+﻿<%
     import plexpy
     from plexpy import version
     from plexpy.helpers import anon_url
@@ -61,7 +61,7 @@
         Update your Docker container or <a href="#" id="updateDismiss">Dismiss</a>
         % elif plexpy.INSTALL_TYPE == 'snap':
         Update your Snap package or <a href="#" id="updateDismiss">Dismiss</a>
-        % elif plexpy.INSTALL_TYPE == 'macos':
+        % elif plexpy.INSTALL_TYPE in ('windows', 'macos'):
         <a href="${anon_url('https://github.com/%s/%s/releases/tag/%s' % (plexpy.CONFIG.GIT_USER, plexpy.CONFIG.GIT_REPO, plexpy.LATEST_RELEASE))}" target="_blank" rel="noreferrer">Download</a> and install the latest version or <a href="#" id="updateDismiss">Dismiss</a>
         % else:
         <a href="update">Update</a> or <a href="#" id="updateDismiss">Dismiss</a>
@@ -140,9 +140,6 @@
                             <li><a href="logs"><i class="fa fa-fw fa-list-alt"></i> View Logs</a></li>
                             <li role="separator" class="divider"></li>
                             <li><a href="settings"><i class="fa fa-fw fa-cogs"></i> Settings</a></li>
-                            % if plexpy.CONFIG.CHECK_GITHUB:
-                            <li><a href="#" id="nav-update"><i class="fa fa-fw fa-arrow-alt-circle-up"></i> Updates</a></li>
-                            % endif
                             <li role="separator" class="divider"></li>
                             <li><a href="#" id="nav-restart"><i class="fa fa-fw fa-refresh"></i> Restart</a></li>
                             <li><a href="#" id="nav-shutdown"><i class="fa fa-fw fa-power-off"></i> Shutdown</a></li>
@@ -210,8 +207,8 @@ ${next.modalIncludes()}
         </div>
     </div>
 </div>
-
-<!--div id="donate-modal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="donate-modal">
+% else:
+<div id="donate-modal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="donate-modal">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
@@ -275,7 +272,7 @@ ${next.modalIncludes()}
             </div>
         </div>
     </div>
-</div-->
+</div>
 % endif
 
 <div id="confirm-modal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="confirm-modal">
@@ -346,7 +343,7 @@ ${next.modalIncludes()}
                         msg += 'Update your Docker container or <a href="#" id="updateDismiss">Dismiss</a>';
                     } else if (result.install_type === 'snap') {
                         msg += 'Update your Snap package or <a href="#" id="updateDismiss">Dismiss</a>';
-                    } else if (result.install_type === 'macos') {
+                    } else if (result.install_type === 'windows' || result.install_type === 'macos') {
                         msg += '<a href="' + result.release_url + '" target="_blank" rel="noreferrer">Download</a> and install the latest version or <a href="#" id="updateDismiss">Dismiss</a>'
                     } else {
                         msg += '<a href="update">Update</a> or <a href="#" id="updateDismiss">Dismiss</a>';
