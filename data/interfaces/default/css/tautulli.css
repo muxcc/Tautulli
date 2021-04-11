@@ -1923,7 +1923,7 @@ a:hover .summary-poster-face-track .summary-poster-face-overlay span {
     color: #999;
 }
 .critic-rating {
-    display: inline-block;
+    display: flex;
     font-size: 14px;
     overflow: hidden;
     white-space: nowrap;
@@ -3223,7 +3223,7 @@ div.dataTables_info {
 #libraries-to-purge > li {
     color: #e9a049;
 }
-#updatebar {
+#updatebar, #token_error_bar  {
     background-color: #444;
     opacity: 0.95;
     color: #999999;
@@ -3238,31 +3238,34 @@ div.dataTables_info {
     z-index: 9999;
     display: block;
 }
-#updatebar .msg {
+#updatebar .msg, #token_error_bar .msg {
     line-height: normal;
     padding-left: 20px;
 }
-#updatebar .loader {
+#updatebar .loader, #token_error_bar .loader {
     position: relative;
     top: 2px;
 }
-#updatebar.success {
+#updatebar.success, #token_error_bar.success {
     padding: 15px 10px;
     text-align: left;
 }
-#updatebar.error {
+#updatebar.error, #token_error_bar.error {
     padding: 15px 10px;
     text-align: left;
 }
-#updatebar .ui-icon {
+#updatebar .ui-icon, #token_error_bar .ui-icon {
     display: inline-block;
     margin-left: -20px;
     top: 2px;
     position: relative;
     margin-right: 3px;
 }
-#updatebar a:hover {
+#updatebar a:hover, #token_error_bar a:hover {
     color: #e9a049;
+}
+#token_error_bar {
+    background-color: rgba(255,0,0,0.5) !important;
 }
 .body-container {
     position: absolute;
@@ -3329,29 +3332,45 @@ pre::-webkit-scrollbar-thumb {
     .button-bar {
         float: left !important;
         clear: both;
-        margin-top: 15px;
+        margin-top: 5px;
     }
     .button-bar > div,
     .button-bar > button,
     .button-bar > span {
         float: left !important;
         clear: both !important;
-        margin-bottom: 10px;
+        margin-top: 10px;
     }
     .button-bar > div > button.btn {
         float: left !important;
         clear: both !important;
     }
     .home-padded-header .button-bar {
-        margin-top: 10px;
+        margin-top: 0;
         margin-bottom: 15px;
     }
 }
 @media only screen
   and (min-width: 740px)
-  and (max-width: 1024px) {
+  and (max-width: 1280px) {
+    .header-bar {
+        display: block;
+        float: none !important;
+    }
     .button-bar {
-        float: right !important;
+        float: left !important;
+        clear: both;
+        margin-top: 5px;
+    }
+    .button-bar .btn-group,
+    .button-bar > button.btn {
+        margin-right: 3px;
+    }
+    .button-bar > div,
+    .button-bar > button,
+    .button-bar > span {
+        float: left !important;
+        margin-top: 10px;
     }
     .button-bar > div > button.btn {
         float: left !important;
@@ -3359,6 +3378,8 @@ pre::-webkit-scrollbar-thumb {
     }
     .home-padded-header .button-bar {
         float: left !important;
+        margin-top: 0;
+        margin-bottom: 15px;
     }
 }
 #search_form {
@@ -3848,6 +3869,10 @@ a:hover .overlay-refresh-image:hover {
     background-repeat: no-repeat !important;
     background-position: center !important;
 }
+.platform-alexa {
+    background-color: #00caff;
+    background-image: url(../images/platforms/alexa.svg);
+}
 .platform-android {
     background-color: #3ddc84;
     background-image: url(../images/platforms/android.svg);
@@ -3964,6 +3989,9 @@ a:hover .overlay-refresh-image:hover {
     background-color: #107c10;
     background-image: url(../images/platforms/xbox.svg);
 }
+.platform-alexa-rgba {
+    background-color: rgba(0, 202, 255, 0.40);
+}
 .platform-android-rgba {
     background-color: rgba(61, 220, 132, 0.40);
 }
@@ -4073,41 +4101,48 @@ a:hover .overlay-refresh-image:hover {
     background-image: url(../images/icons/most-concurrent-streams.svg);
 }
 .rating-image {
-    width: 51px;
     height: 20px;
     margin-left: 10px;
+    margin-right: 5px;
     display: inline-block;
     background-origin: content-box !important;
-    background-size: contain !important;
     background-repeat: no-repeat !important;
     background-position: left !important;
-    text-align: right;
 }
 .rating-imdb {
-    width: 62px !important;
+    width: 36px;
     background-image: url(../images/rating/imdb.svg);
+    background-size: auto 20px;
 }
 .rating-themoviedb {
-    width: 72px !important;
+    width: 38px;
     background-image: url(../images/rating/themoviedb.svg);
-    background-size: auto 16px !important;
+    background-size: auto 16px;
 }
 .rating-thetvdb {
-    width: 72px !important;
+    width: 36px;
     background-image: url(../images/rating/thetvdb.svg);
-    background-size: auto 36px !important;
+    background-size: auto 36px;
 }
 .rating-rottentomatos-ripe {
+    width: 17px;
     background-image: url(../images/rating/tomato-ripe.svg);
+    background-size: auto 20px;
 }
 .rating-rottentomatos-rotten {
+    width: 17px;
     background-image: url(../images/rating/tomato-rotten.svg);
+    background-size: auto 20px;
 }
 .rating-rottentomatos-upright {
+    width: 16px;
     background-image: url(../images/rating/popcorn-upright.svg);
+    background-size: auto 20px;
 }
 .rating-rottentomatos-spilled {
+    width: 19px;
     background-image: url(../images/rating/popcorn-spilled.svg);
+    background-size: auto 20px;
 }
 .transparent {
     background-color: transparent !important;

@@ -26,7 +26,7 @@ DOCUMENTATION :: END
 
 <%inherit file="base.html"/>
 <%!
-    from plexpy import helpers
+    from plexpy.helpers import page
 %>
 
 <%def name="headIncludes()">
@@ -53,7 +53,7 @@ DOCUMENTATION :: END
                 <div class="col-md-12">
                     <div class="table-card-back">
                         <div class="user-info-wrapper">
-                            <div class="user-info-poster-face" style="background-image: url(${data['user_thumb']});">
+                            <div class="user-info-poster-face" style="background-image: url(${page('pms_image_proxy', data['user_thumb'], None, 80, 80, fallback='user')});">
                                 % if not data['is_active']:
                                 <span class="inactive-user-tooltip" data-toggle="tooltip" title="User not on Plex server">
                                     <i class="fa fa-2x fa-exclamation-triangle"></i>
@@ -160,28 +160,35 @@ DOCUMENTATION :: END
                                         </div>
                                         <div class="button-bar">
                                             % if _session['user_group'] == 'admin':
-                                            <div class="alert alert-danger alert-edit" role="alert" id="row-edit-mode-alert"><i class="fa fa-exclamation-triangle"></i>&nbspSelect rows to delete. Data is deleted upon exiting delete mode.</div>
                                             <div class="btn-group">
                                                 <button class="btn btn-danger btn-edit" data-toggle="button" aria-pressed="false" autocomplete="off" id="row-edit-mode">
                                                     <i class="fa fa-trash-o"></i> Delete mode
-                                                </button>&nbsp;
+                                                </button>
                                             </div>
                                             % endif
                                             <div class="btn-group" data-toggle="buttons" id="media_type-selection">
                                                 <label class="btn btn-dark">
-                                                    <input type="radio" name="media_type-filter" id="history-all" value="all" autocomplete="off"> All
+                                                    <input type="checkbox" name="media_type-filter" id="history-media_type-movie" value="movie" autocomplete="off"><i class="fa fa-film"></i> Movies
                                                 </label>
                                                 <label class="btn btn-dark">
-                                                    <input type="radio" name="media_type-filter" id="history-movie" value="movie" autocomplete="off"> Movies
+                                                    <input type="checkbox" name="media_type-filter" id="history-media_type-episode" value="episode" autocomplete="off"><i class="fa fa-television"></i> TV Shows
                                                 </label>
                                                 <label class="btn btn-dark">
-                                                    <input type="radio" name="media_type-filter" id="history-episode" value="episode" autocomplete="off"> TV Shows
+                                                    <input type="checkbox" name="media_type-filter" id="history-media_type-track" value="track" autocomplete="off"><i class="fa fa-music"></i> Music
                                                 </label>
                                                 <label class="btn btn-dark">
-                                                    <input type="radio" name="media_type-filter" id="history-track" value="track" autocomplete="off"> Music
+                                                    <input type="checkbox" name="media_type-filter" id="history-media_type-live" value="live" autocomplete="off"><i class="fa fa-broadcast-tower"></i> Live TV
+                                                </label>
+                                            </div>
+                                            <div class="btn-group" data-toggle="buttons" id="transcode_decision-selection">
+                                                <label class="btn btn-dark">
+                                                    <input type="checkbox" name="transcode_decision-filter" id="history-transcode_decision-direct_play" value="direct play" autocomplete="off"><i class="fa fa-play-circle"></i> Direct Play
                                                 </label>
                                                 <label class="btn btn-dark">
-                                                    <input type="radio" name="media_type-filter" id="history-live" value="live" autocomplete="off"> Live TV
+                                                    <input type="checkbox" name="transcode_decision-filter" id="history-transcode_decision-direct_stream" value="copy" autocomplete="off"><i class="fa fa-stream"></i> Direct Stream
+                                                </label>
+                                                <label class="btn btn-dark">
+                                                    <input type="checkbox" name="transcode_decision-filter" id="history-transcode_decision-transcode" value="transcode" autocomplete="off"><i class="fa fa-server"></i> Transcode
                                                 </label>
                                             </div>
                                             <div class="btn-group">
@@ -323,11 +330,10 @@ DOCUMENTATION :: END
                                         </div>
                                         <div class="button-bar">
                                             % if _session['user_group'] == 'admin':
-                                            <div class="alert alert-danger alert-edit" role="alert" id="sync-row-edit-mode-alert"><i class="fa fa-exclamation-triangle"></i>&nbspSelect syncs to delete. Data is deleted upon exiting delete mode.</div>
                                             <div class="btn-group">
                                                 <button class="btn btn-danger btn-edit" data-toggle="button" aria-pressed="false" autocomplete="off" id="sync-row-edit-mode">
                                                     <i class="fa fa-trash-o"></i> Delete mode
-                                                </button>&nbsp
+                                                </button>
                                             </div>
                                             % endif
                                             <div class="btn-group">
@@ -525,7 +531,7 @@ DOCUMENTATION :: END
 
     $(".inactive-user-tooltip").tooltip();
 
-    function loadHistoryTable(media_type) {
+    function loadHistoryTable(media_type, transcode_decision) {
         // Build watch history table
         history_table_options.ajax = {
             url: 'get_history',
@@ -534,7 +540,8 @@ DOCUMENTATION :: END
                 return {
                     json_data: JSON.stringify( d ),
                     user_id: user_id,
-                    media_type: media_type
+                    media_type: media_type,
+                    transcode_decision: transcode_decision
                 };
             }
         };
@@ -548,10 +555,19 @@ DOCUMENTATION :: END
 
         $('#media_type-selection').on('change', function () {
             $('#media_type-selection > label').removeClass('active');
-            selected_filter = $('input[name=media_type-filter]:checked', '#media_type-selection');
+            var selected_filter = $('input[name=media_type-filter]:checked', '#media_type-selection');
             $(selected_filter).closest('label').addClass('active');
-            media_type = $(selected_filter).val();
+            media_type = $(selected_filter).map(function () { return $(this).val(); }).get().join(',');
             setLocalStorage('user_' + user_id + '-history_media_type', media_type);
+            history_table.draw();
+        });
+
+        $('#transcode_decision-selection').on('change', function () {
+            $('#transcode_decision-selection > label').removeClass('active');
+            var selected_filter = $('input[name=transcode_decision-filter]:checked', '#transcode_decision-selection');
+            $(selected_filter).closest('label').addClass('active');
+            transcode_decision = $(selected_filter).map(function () { return $(this).val(); }).get().join(',');
+            setLocalStorage('user_' + user_id + 'history_transcode_decision', transcode_decision);
             history_table.draw();
         });
     }
@@ -559,9 +575,20 @@ DOCUMENTATION :: END
     $('#nav-tabs-history').on('shown.bs.tab', function() {
         if (typeof(history_table) === 'undefined') {
             var media_type = getLocalStorage('user_' + user_id + '-history_media_type', 'all');
-            $('#history-' + media_type).prop('checked', true);
-            $('#history-' + media_type).closest('label').addClass('active');
-            loadHistoryTable(media_type);
+            $.each(media_type.split(','), function (i, item) {
+                var history_media_type = $('#history-media_type-' + item);
+                history_media_type.prop('checked', true);
+                history_media_type.closest('label').addClass('active');
+            });
+
+            var transcode_decision = getLocalStorage('user_' + user_id + 'history_transcode_decision', 'all');
+            $.each(transcode_decision.split(','), function (i, item) {
+                var history_transcode_decision = $('#history-transcode_decision-' + item.replace(' ', '_'));
+                history_transcode_decision.prop('checked', true);
+                history_transcode_decision.closest('label').addClass('active');
+            });
+
+            loadHistoryTable(media_type, transcode_decision);
         }
     });
 
@@ -844,9 +871,9 @@ DOCUMENTATION :: END
     });
 
     $('#row-edit-mode').on('click', function() {
-        $('#row-edit-mode-alert').fadeIn(200);
-
         if ($(this).hasClass('active')) {
+            $(this).tooltip('destroy');
+
             if (history_to_delete.length > 0) {
                 $('#deleteCount').text(history_to_delete.length);
                 $('#deleteType').text('history');
@@ -872,6 +899,13 @@ DOCUMENTATION :: END
             });
 
         } else {
+            $(this).tooltip({
+                container: '.body-container',
+                placement: 'bottom',
+                title: 'Select rows to delete. Data is deleted upon exiting delete mode.',
+                trigger: 'manual'
+            }).tooltip('show');
+
             history_to_delete = [];
             $('.history_table .delete-control').each(function() {
                 $(this).find('button.btn-danger').toggleClass('btn-warning').toggleClass('btn-danger');
@@ -881,9 +915,9 @@ DOCUMENTATION :: END
     });
 
     $('#sync-row-edit-mode').on('click', function() {
-        $('#sync-row-edit-mode-alert').fadeIn(200);
-
         if ($(this).hasClass('active')) {
+            $(this).tooltip('destroy');
+
             if (syncs_to_delete.length > 0) {
                 $('#deleteCount').text(syncs_to_delete.length);
                 $('#deleteType').text('sync');
@@ -914,6 +948,13 @@ DOCUMENTATION :: END
             });
 
         } else {
+            $(this).tooltip({
+                container: '.body-container',
+                placement: 'bottom',
+                title: 'Select syncs to delete. Data is deleted upon exiting delete mode.',
+                trigger: 'manual'
+            }).tooltip('show');
+
             syncs_to_delete = [];
             $('.sync_table .delete-control').each(function() {
                 $(this).find('button.btn-danger').toggleClass('btn-warning').toggleClass('btn-danger');

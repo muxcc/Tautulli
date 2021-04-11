@@ -46,6 +46,7 @@ if PYTHON2:
     import database
     import datafactory
     import exporter
+    import helpers
     import libraries
     import logger
     import mobile_app
@@ -67,6 +68,7 @@ else:
     from plexpy import database
     from plexpy import datafactory
     from plexpy import exporter
+    from plexpy import helpers
     from plexpy import libraries
     from plexpy import logger
     from plexpy import mobile_app
@@ -491,7 +493,7 @@ def initialize_scheduler():
 
             # Schedule job to reconnect server
             schedule_job(activity_pinger.connect_server, 'Check for server response',
-                         hours=0, minutes=0, seconds=60, args=(False,))
+                         hours=0, minutes=0, seconds=30, args=(False,))
             schedule_job(web_socket.send_ping, 'Websocket ping',
                          hours=0, minutes=0, seconds=0)
 
@@ -600,6 +602,11 @@ def dbcheck():
     conn_db = sqlite3.connect(DB_FILE)
     c_db = conn_db.cursor()
 
+    # schema table :: This is a table which keeps track of the database version
+    c_db.execute(
+        'CREATE TABLE IF NOT EXISTS version_info (key TEXT UNIQUE, value TEXT)'
+    )
+
     # sessions table :: This is a temp table that logs currently active sessions
     c_db.execute(
         'CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, session_key INTEGER, session_id TEXT, '
@@ -650,7 +657,8 @@ def dbcheck():
         'ip_address TEXT, paused_counter INTEGER DEFAULT 0, player TEXT, product TEXT, product_version TEXT, '
         'platform TEXT, platform_version TEXT, profile TEXT, machine_id TEXT, '
         'bandwidth INTEGER, location TEXT, quality_profile TEXT, secure INTEGER, relayed INTEGER, '
-        'parent_rating_key INTEGER, grandparent_rating_key INTEGER, media_type TEXT, view_offset INTEGER DEFAULT 0)'
+        'parent_rating_key INTEGER, grandparent_rating_key INTEGER, media_type TEXT, section_id INTEGER, '
+        'view_offset INTEGER DEFAULT 0)'
     )
 
     # session_history_media_info table :: This is a table which logs each session's media info
@@ -682,7 +690,7 @@ def dbcheck():
         'CREATE TABLE IF NOT EXISTS session_history_metadata (id INTEGER PRIMARY KEY, '
         'rating_key INTEGER, parent_rating_key INTEGER, grandparent_rating_key INTEGER, '
         'title TEXT, parent_title TEXT, grandparent_title TEXT, original_title TEXT, full_title TEXT, '
-        'media_index INTEGER, parent_media_index INTEGER, section_id INTEGER, '
+        'media_index INTEGER, parent_media_index INTEGER, '
         'thumb TEXT, parent_thumb TEXT, grandparent_thumb TEXT, '
         'art TEXT, media_type TEXT, year INTEGER, originally_available_at TEXT, added_at INTEGER, updated_at INTEGER, '
         'last_viewed_at INTEGER, content_rating TEXT, summary TEXT, tagline TEXT, rating TEXT, '
@@ -755,10 +763,10 @@ def dbcheck():
     # newsletters table :: This table keeps record of the newsletter settings
     c_db.execute(
         'CREATE TABLE IF NOT EXISTS newsletters (id INTEGER PRIMARY KEY AUTOINCREMENT, '
-        'agent_id INTEGER, agent_name TEXT, agent_label TEXT, id_name TEXT NOT NULL DEFAULT "", '
+        'agent_id INTEGER, agent_name TEXT, agent_label TEXT, id_name TEXT NOT NULL, '
         'friendly_name TEXT, newsletter_config TEXT, email_config TEXT, '
         'subject TEXT, body TEXT, message TEXT, '
-        'cron TEXT NOT NULL DEFAULT "0 0 * * 0", active INTEGER DEFAULT 0)'
+        'cron TEXT NOT NULL DEFAULT \'0 0 * * 0\', active INTEGER DEFAULT 0)'
     )
 
     # newsletter_log table :: This is a table which logs newsletters sent
@@ -1421,6 +1429,56 @@ def dbcheck():
     except sqlite3.OperationalError:
         logger.warn("Unable to capitalize Windows platform values in session_history table.")
 
+    # Upgrade session_history table from earlier versions
+    try:
+        c_db.execute('SELECT section_id FROM session_history')
+    except sqlite3.OperationalError:
+        logger.debug("Altering database. Updating database table session_history.")
+        c_db.execute(
+            'ALTER TABLE session_history ADD COLUMN section_id INTEGER'
+        )
+        c_db.execute(
+            'UPDATE session_history SET section_id = ('
+            'SELECT section_id FROM session_history_metadata '
+            'WHERE session_history_metadata.id = session_history.id)'
+        )
+        c_db.execute(
+            'CREATE TABLE IF NOT EXISTS session_history_metadata_temp (id INTEGER PRIMARY KEY, '
+            'rating_key INTEGER, parent_rating_key INTEGER, grandparent_rating_key INTEGER, '
+            'title TEXT, parent_title TEXT, grandparent_title TEXT, original_title TEXT, full_title TEXT, '
+            'media_index INTEGER, parent_media_index INTEGER, '
+            'thumb TEXT, parent_thumb TEXT, grandparent_thumb TEXT, '
+            'art TEXT, media_type TEXT, year INTEGER, originally_available_at TEXT, added_at INTEGER, updated_at INTEGER, '
+            'last_viewed_at INTEGER, content_rating TEXT, summary TEXT, tagline TEXT, rating TEXT, '
+            'duration INTEGER DEFAULT 0, guid TEXT, directors TEXT, writers TEXT, actors TEXT, genres TEXT, studio TEXT, '
+            'labels TEXT, live INTEGER DEFAULT 0, channel_call_sign TEXT, channel_identifier TEXT, channel_thumb TEXT)'
+        )
+        c_db.execute(
+            'INSERT INTO session_history_metadata_temp (id, rating_key, parent_rating_key, grandparent_rating_key, '
+            'title, parent_title, grandparent_title, original_title, full_title, '
+            'media_index, parent_media_index, '
+            'thumb, parent_thumb, grandparent_thumb, '
+            'art, media_type, year, originally_available_at, added_at, updated_at, '
+            'last_viewed_at, content_rating, summary, tagline, rating, '
+            'duration, guid, directors, writers, actors, genres, studio, '
+            'labels, live, channel_call_sign, channel_identifier, channel_thumb) '
+            'SELECT id, rating_key, parent_rating_key, grandparent_rating_key, '
+            'title, parent_title, grandparent_title, original_title, full_title, '
+            'media_index, parent_media_index, '
+            'thumb, parent_thumb, grandparent_thumb, '
+            'art, media_type, year, originally_available_at, added_at, updated_at, '
+            'last_viewed_at, content_rating, summary, tagline, rating, '
+            'duration, guid, directors, writers, actors, genres, studio, '
+            'labels, live, channel_call_sign, channel_identifier, channel_thumb '
+            'FROM session_history_metadata'
+        )
+        c_db.execute(
+            'DROP TABLE session_history_metadata'
+        )
+        c_db.execute(
+            'ALTER TABLE session_history_metadata_temp RENAME TO session_history_metadata'
+        )
+
     # Upgrade session_history_metadata table from earlier versions
     try:
         c_db.execute('SELECT full_title FROM session_history_metadata')
@@ -1437,15 +1495,6 @@ def dbcheck():
         logger.debug("Altering database. Updating database table session_history_metadata.")
         c_db.execute(
             'ALTER TABLE session_history_metadata ADD COLUMN tagline TEXT'
-        )
-
-    # Upgrade session_history_metadata table from earlier versions
-    try:
-        c_db.execute('SELECT section_id FROM session_history_metadata')
-    except sqlite3.OperationalError:
-        logger.debug("Altering database. Updating database table session_history_metadata.")
-        c_db.execute(
-            'ALTER TABLE session_history_metadata ADD COLUMN section_id INTEGER'
         )
 
     # Upgrade session_history_metadata table from earlier versions
@@ -1950,8 +1999,42 @@ def dbcheck():
     except sqlite3.OperationalError:
         logger.debug("Altering database. Updating database table newsletters.")
         c_db.execute(
-            'ALTER TABLE newsletters ADD COLUMN id_name TEXT NOT NULL DEFAULT ""'
+            'ALTER TABLE newsletters ADD COLUMN id_name TEXT NOT NULL'
         )
+
+    # Upgrade newsletters table from earlier versions
+    try:
+        result = c_db.execute('SELECT SQL FROM sqlite_master WHERE type="table" AND name="newsletters"').fetchone()
+        if '"cron"\tTEXT NOT NULL DEFAULT "0 0 * * 0"' in result[0]:
+            logger.debug("Altering database. Updating default cron value in newsletters table.")
+            c_db.execute(
+                'CREATE TABLE newsletters_temp (id INTEGER PRIMARY KEY AUTOINCREMENT, '
+                'agent_id INTEGER, agent_name TEXT, agent_label TEXT, id_name TEXT NOT NULL, '
+                'friendly_name TEXT, newsletter_config TEXT, email_config TEXT, '
+                'subject TEXT, body TEXT, message TEXT, '
+                'cron TEXT NOT NULL DEFAULT \'0 0 * * 0\', active INTEGER DEFAULT 0)'
+            )
+            c_db.execute(
+                'INSERT INTO newsletters_temp (id, agent_id, agent_name, agent_label, id_name, '
+                'friendly_name, newsletter_config, email_config, subject, body, message, cron, active) '
+                'SELECT id, agent_id, agent_name, agent_label, id_name, '
+                'friendly_name, newsletter_config, email_config, subject, body, message, cron, active '
+                'FROM newsletters'
+            )
+            c_db.execute(
+                'DROP TABLE newsletters'
+            )
+            c_db.execute(
+                'ALTER TABLE newsletters_temp RENAME TO newsletters'
+            )
+    except sqlite3.OperationalError:
+        logger.warn("Unable to update default cron value in newsletters table.")
+        try:
+            c_db.execute(
+                'DROP TABLE newsletters_temp'
+            )
+        except:
+            pass
 
     # Upgrade library_sections table from earlier versions (remove UNIQUE constraint on section_id)
     try:
@@ -2284,28 +2367,114 @@ def dbcheck():
         logger.debug("User 'Local' does not exist. Adding user.")
         c_db.execute('INSERT INTO users (user_id, username) VALUES (0, "Local")')
 
-    # Create table indices
+    # Create session_history table indices
     c_db.execute(
-        'CREATE UNIQUE INDEX IF NOT EXISTS idx_tvmaze_lookup ON tvmaze_lookup (rating_key)'
+        'CREATE INDEX IF NOT EXISTS "idx_session_history_media_type" '
+        'ON "session_history" ("media_type")'
     )
     c_db.execute(
-        'CREATE UNIQUE INDEX IF NOT EXISTS idx_themoviedb_lookup ON themoviedb_lookup (rating_key)'
+        'CREATE INDEX IF NOT EXISTS "idx_session_history_media_type_stopped" '
+        'ON "session_history" ("media_type", "stopped" ASC)'
     )
     c_db.execute(
-        'CREATE UNIQUE INDEX IF NOT EXISTS idx_musicbrainz_lookup ON musicbrainz_lookup (rating_key)'
+        'CREATE INDEX IF NOT EXISTS "idx_session_history_rating_key" '
+        'ON "session_history" ("rating_key")'
     )
     c_db.execute(
-        'CREATE UNIQUE INDEX IF NOT EXISTS idx_image_hash_lookup ON image_hash_lookup (img_hash)'
+        'CREATE INDEX IF NOT EXISTS "idx_session_history_parent_rating_key" '
+        'ON "session_history" ("parent_rating_key")'
     )
     c_db.execute(
-        'CREATE UNIQUE INDEX IF NOT EXISTS idx_cloudinary_lookup ON cloudinary_lookup (img_hash)'
+        'CREATE INDEX IF NOT EXISTS "idx_session_history_grandparent_rating_key" '
+        'ON "session_history" ("grandparent_rating_key")'
     )
     c_db.execute(
-        'CREATE UNIQUE INDEX IF NOT EXISTS idx_imgur_lookup ON imgur_lookup (img_hash)'
+        'CREATE INDEX IF NOT EXISTS "idx_session_history_user" '
+        'ON "session_history" ("user")'
     )
     c_db.execute(
-        'CREATE UNIQUE INDEX IF NOT EXISTS idx_sessions_continued ON sessions_continued (user_id, machine_id, media_type)'
+        'CREATE INDEX IF NOT EXISTS "idx_session_history_user_id" '
+        'ON "session_history" ("user_id")'
     )
+    c_db.execute(
+        'CREATE INDEX IF NOT EXISTS "idx_session_history_user_id_stopped" '
+        'ON "session_history" ("user_id", "stopped" ASC)'
+    )
+    c_db.execute(
+        'CREATE INDEX IF NOT EXISTS "idx_session_history_section_id" '
+        'ON "session_history" ("section_id")'
+    )
+    c_db.execute(
+        'CREATE INDEX IF NOT EXISTS "idx_session_history_section_id_stopped" '
+        'ON "session_history" ("section_id", "stopped" ASC)'
+    )
+    c_db.execute(
+        'CREATE INDEX IF NOT EXISTS "idx_session_history_reference_id" '
+        'ON "session_history" ("reference_id" ASC)'
+    )
+
+    # Create session_history_metadata table indices
+    c_db.execute(
+        'CREATE INDEX IF NOT EXISTS "idx_session_history_metadata_rating_key" '
+        'ON "session_history_metadata" ("rating_key")'
+    )
+    c_db.execute(
+        'CREATE INDEX IF NOT EXISTS "idx_session_history_metadata_guid" '
+        'ON "session_history_metadata" ("guid")'
+    )
+    c_db.execute(
+        'CREATE INDEX IF NOT EXISTS "idx_session_history_metadata_live" '
+        'ON "session_history_metadata" ("live")'
+    )
+
+    # Create session_history_media_info table indices
+    c_db.execute(
+        'CREATE INDEX IF NOT EXISTS "idx_session_history_media_info_transcode_decision" '
+        'ON "session_history_media_info" ("transcode_decision")'
+    )
+
+    # Create lookup table indices
+    c_db.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS "idx_tvmaze_lookup" '
+        'ON "tvmaze_lookup" ("rating_key")'
+    )
+    c_db.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS "idx_themoviedb_lookup" '
+        'ON "themoviedb_lookup" ("rating_key")'
+    )
+    c_db.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS "idx_musicbrainz_lookup" '
+        'ON "musicbrainz_lookup" ("rating_key")'
+    )
+    c_db.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS "idx_image_hash_lookup" '
+        'ON "image_hash_lookup" ("img_hash")'
+    )
+    c_db.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS "idx_cloudinary_lookup" '
+        'ON "cloudinary_lookup" ("img_hash")'
+    )
+    c_db.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS "idx_imgur_lookup" '
+        'ON "imgur_lookup" ("img_hash")'
+    )
+    c_db.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS "idx_sessions_continued" '
+        'ON "sessions_continued" ("user_id", "machine_id", "media_type")'
+    )
+
+    # Set database version
+    result = c_db.execute('SELECT value FROM version_info WHERE key = "version"').fetchone()
+    if not result:
+        c_db.execute(
+            'INSERT OR REPLACE INTO version_info (key, value) VALUES ("version", ?)',
+            [common.RELEASE]
+        )
+    elif helpers.version_to_tuple(result[0]) < helpers.version_to_tuple(common.RELEASE):
+        c_db.execute(
+            'UPDATE version_info SET value = ? WHERE key = "version"',
+            [common.RELEASE]
+        )
 
     conn_db.commit()
     c_db.close()
@@ -2333,6 +2502,11 @@ def dbcheck():
 
 
 def upgrade():
+    if CONFIG.UPGRADE_FLAG == 0:
+        mobile_app.revalidate_onesignal_ids()
+        CONFIG.UPGRADE_FLAG = 1
+        CONFIG.write()
+
     return
 
 

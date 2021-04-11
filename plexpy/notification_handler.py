@@ -68,7 +68,7 @@ def process_queue():
     queue = plexpy.NOTIFY_QUEUE
     while True:
         params = queue.get()
-
+        
         if params is None:
             break
         elif params:
@@ -202,7 +202,7 @@ def notify_conditions(notify_action=None, stream_data=None, timeline_data=None):
 
             if notify_action == 'on_stop':
                 evaluated = (plexpy.CONFIG.NOTIFY_CONSECUTIVE or
-                    (stream_data['media_type'] == 'movie' and progress_percent < plexpy.CONFIG.MOVIE_WATCHED_PERCENT) or
+                    (stream_data['media_type'] == 'movie' and progress_percent < plexpy.CONFIG.MOVIE_WATCHED_PERCENT) or 
                     (stream_data['media_type'] == 'episode' and progress_percent < plexpy.CONFIG.TV_WATCHED_PERCENT))
 
             elif notify_action == 'on_resume':
@@ -602,10 +602,9 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
         pms_identifier=plexpy.CONFIG.PMS_IDENTIFIER,
         rating_key=plex_web_rating_key)
 
+    # Check external guids
     for guid in notify_params['guids']:
-        if 'kinopoisk2://' in guid:
-            notify_params['kinopoisk_id'] = guid.split('kinopoisk2://')[1]
-        elif 'imdb://' in guid:
+        if 'imdb://' in guid:
             notify_params['imdb_id'] = guid.split('imdb://')[1]
         elif 'tmdb://' in guid:
             notify_params['themoviedb_id'] = guid.split('tmdb://')[1]
@@ -615,11 +614,6 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
     # Get media IDs from guid and build URLs
     if 'plex://' in notify_params['guid']:
         notify_params['plex_id'] = notify_params['guid'].split('plex://')[1].split('/')[1]
-
-    if 'kinopoisk2://' in notify_params['guid'] or notify_params['kinopoisk_id']:
-        notify_params['kinopoisk_id'] = notify_params['kinopoisk_id'] or notify_params['guid'].split('kinopoisk2://')[1].split('?')[0]
-        notify_params['kinopoisk_url'] = 'https://www.kinopoisk.ru/film/' + notify_params['kinopoisk_id']
-        notify_params['trakt_url'] = 'https://trakt.tv/search/kinopoisk/' + notify_params['kinopoisk_id']
 
     if 'imdb://' in notify_params['guid'] or notify_params['imdb_id']:
         notify_params['imdb_id'] = notify_params['imdb_id'] or notify_params['guid'].split('imdb://')[1].split('?')[0]
@@ -1027,7 +1021,6 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
         'labels': ', '.join(notify_params['labels']),
         'collections': ', '.join(notify_params['collections']),
         'summary': notify_params['summary'],
-        'summary_short' : notify_params['summary'][:375]+" ...",
         'tagline': notify_params['tagline'],
         'rating': rating,
         'critic_rating':  critic_rating,
@@ -1038,8 +1031,6 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
         'poster_url': notify_params['poster_url'],
         'plex_id': notify_params['plex_id'],
         'plex_url': notify_params['plex_url'],
-        'kinopoisk_id': notify_params['kinopoisk_id'],
-        'kinopoisk_url': notify_params['kinopoisk_url'],
         'imdb_id': notify_params['imdb_id'],
         'imdb_url': notify_params['imdb_url'],
         'thetvdb_id': notify_params['thetvdb_id'],
@@ -1093,6 +1084,7 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
         'filename': os.path.basename(notify_params['file']),
         'file_size': helpers.human_file_size(notify_params['file_size']),
         'indexes': notify_params['indexes'],
+        'guid': notify_params['guid'],
         'section_id': notify_params['section_id'],
         'rating_key': notify_params['rating_key'],
         'parent_rating_key': notify_params['parent_rating_key'],
@@ -1104,7 +1096,8 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
         'poster_thumb': poster_thumb
         }
 
-    return available_params
+    notify_params.update(available_params)
+    return notify_params
 
 
 def build_server_notify_params(notify_action=None, **kwargs):

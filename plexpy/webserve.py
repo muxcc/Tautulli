@@ -952,7 +952,7 @@ class WebInterface(object):
     @cherrypy.tools.json_out()
     @requireAuth(member_of("admin"))
     @addtoapi()
-    def get_library(self, section_id=None, **kwargs):
+    def get_library(self, section_id=None, include_last_accessed=False, **kwargs):
         """ Get a library's details.
 
             ```
@@ -960,7 +960,7 @@ class WebInterface(object):
                 section_id (str):               The id of the Plex library section
 
             Optional parameters:
-                None
+                include_last_accessed (bool):   True to include the last_accessed value for the library.
 
             Returns:
                 json:
@@ -971,6 +971,7 @@ class WebInterface(object):
                      "do_notify_created": 1,
                      "is_active": 1,
                      "keep_history": 1,
+                     "last_accessed": 1462693216,
                      "library_art": "/:/resources/movie-fanart.jpg",
                      "library_thumb": "/:/resources/movie.png",
                      "parent_count": null,
@@ -982,9 +983,11 @@ class WebInterface(object):
                      }
             ```
         """
+        include_last_accessed = helpers.bool_true(include_last_accessed)
         if section_id:
             library_data = libraries.Libraries()
-            library_details = library_data.get_details(section_id=section_id)
+            library_details = library_data.get_details(section_id=section_id,
+                                                       include_last_accessed=include_last_accessed)
             if library_details:
                 return library_details
             else:
@@ -1587,15 +1590,15 @@ class WebInterface(object):
     @cherrypy.tools.json_out()
     @requireAuth(member_of("admin"))
     @addtoapi()
-    def get_user(self, user_id=None, **kwargs):
+    def get_user(self, user_id=None, include_last_seen=False, **kwargs):
         """ Get a user's details.
 
             ```
             Required parameters:
-                user_id (str):          The id of the Plex user
+                user_id (str):              The id of the Plex user
 
             Optional parameters:
-                None
+                include_last_seen (bool):   True to include the last_seen value for the user.
 
             Returns:
                 json:
@@ -1610,6 +1613,7 @@ class WebInterface(object):
                      "is_home_user": 1,
                      "is_restricted": 0,
                      "keep_history": 1,
+                     "last_seen": 1462591869,
                      "row_id": 1,
                      "shared_libraries": ["10", "1", "4", "5", "15", "20", "2"],
                      "user_id": 133788,
@@ -1618,9 +1622,11 @@ class WebInterface(object):
                      }
             ```
         """
+        include_last_seen = helpers.bool_true(include_last_seen)
         if user_id:
             user_data = users.Users()
-            user_details = user_data.get_details(user_id=user_id)
+            user_details = user_data.get_details(user_id=user_id,
+                                                 include_last_seen=include_last_seen)
             if user_details:
                 return user_details
             else:
@@ -1927,41 +1933,58 @@ class WebInterface(object):
 
         custom_where = []
         if user_id:
-            custom_where.append(['session_history.user_id', user_id])
+            user_id = helpers.split_strip(user_id)
+            if user_id:
+                custom_where.append(['session_history.user_id', user_id])
         elif user:
-            custom_where.append(['session_history.user', user])
+            user = helpers.split_strip(user)
+            if user:
+                custom_where.append(['session_history.user', user])
         if 'rating_key' in kwargs:
-            rating_key = kwargs.get('rating_key', '')
-            custom_where.append(['session_history.rating_key', rating_key])
+            rating_key = helpers.split_strip(kwargs.get('rating_key', ''))
+            if rating_key:
+                custom_where.append(['session_history.rating_key', rating_key])
         if 'parent_rating_key' in kwargs:
-            rating_key = kwargs.get('parent_rating_key', '')
-            custom_where.append(['session_history.parent_rating_key', rating_key])
+            rating_key = helpers.split_strip(kwargs.get('parent_rating_key', ''))
+            if rating_key:
+                custom_where.append(['session_history.parent_rating_key', rating_key])
         if 'grandparent_rating_key' in kwargs:
-            rating_key = kwargs.get('grandparent_rating_key', '')
-            custom_where.append(['session_history.grandparent_rating_key', rating_key])
+            rating_key = helpers.split_strip(kwargs.get('grandparent_rating_key', ''))
+            if rating_key:
+                custom_where.append(['session_history.grandparent_rating_key', rating_key])
         if 'start_date' in kwargs:
-            start_date = kwargs.get('start_date', '')
-            custom_where.append(['strftime("%Y-%m-%d", datetime(started, "unixepoch", "localtime"))', start_date])
+            start_date = helpers.split_strip(kwargs.get('start_date', ''))
+            if start_date:
+                custom_where.append(['strftime("%Y-%m-%d", datetime(started, "unixepoch", "localtime"))', start_date])
         if 'reference_id' in kwargs:
-            reference_id = kwargs.get('reference_id', '')
-            custom_where.append(['session_history.reference_id', reference_id])
+            reference_id = helpers.split_strip(kwargs.get('reference_id', ''))
+            if reference_id:
+                custom_where.append(['session_history.reference_id', reference_id])
         if 'section_id' in kwargs:
-            section_id = kwargs.get('section_id', '')
-            custom_where.append(['session_history_metadata.section_id', section_id])
+            section_id = helpers.split_strip(kwargs.get('section_id', ''))
+            if section_id:
+                custom_where.append(['session_history.section_id', section_id])
         if 'media_type' in kwargs:
-            media_type = kwargs.get('media_type', '')
-            if media_type not in ('all', 'live'):
-                custom_where.append(['session_history.media_type', media_type])
-                custom_where.append(['session_history_metadata.live', '0'])
-            elif media_type == 'live':
-                custom_where.append(['session_history_metadata.live', '1'])
+            media_type = helpers.split_strip(kwargs.get('media_type', ''))
+            if media_type and 'all' not in media_type:
+                if 'live' in media_type:
+                    media_type.remove('live')
+                    if len(media_type):
+                        custom_where.append(['session_history_metadata.live OR', '1'])
+                    else:
+                        custom_where.append(['session_history_metadata.live', '1'])
+                else:
+                    custom_where.append(['session_history_metadata.live', '0'])
+                if media_type:
+                    custom_where.append(['session_history.media_type', media_type])
         if 'transcode_decision' in kwargs:
-            transcode_decision = kwargs.get('transcode_decision', '')
-            if transcode_decision:
+            transcode_decision = helpers.split_strip(kwargs.get('transcode_decision', ''))
+            if transcode_decision and 'all' not in transcode_decision:
                 custom_where.append(['session_history_media_info.transcode_decision', transcode_decision])
         if 'guid' in kwargs:
-            guid = kwargs.get('guid', '').split('?')[0]
-            custom_where.append(['session_history_metadata.guid', 'LIKE ' + guid + '%'])  # SQLite LIKE wildcard
+            guid = helpers.split_strip(kwargs.get('guid', '').split('?')[0])
+            if guid:
+                custom_where.append(['session_history_metadata.guid', ['LIKE ' + g + '%' for g in guid]])
 
         data_factory = datafactory.DataFactory()
         history = data_factory.get_datatables_history(kwargs=kwargs, custom_where=custom_where,
@@ -3144,6 +3167,7 @@ class WebInterface(object):
             "notify_concurrent_threshold": plexpy.CONFIG.NOTIFY_CONCURRENT_THRESHOLD,
             "notify_continued_session_threshold": plexpy.CONFIG.NOTIFY_CONTINUED_SESSION_THRESHOLD,
             "notify_new_device_initial_only": checked(plexpy.CONFIG.NOTIFY_NEW_DEVICE_INITIAL_ONLY),
+            "notify_server_connection_threshold": plexpy.CONFIG.NOTIFY_SERVER_CONNECTION_THRESHOLD,
             "home_sections": json.dumps(plexpy.CONFIG.HOME_SECTIONS),
             "home_stats_cards": json.dumps(plexpy.CONFIG.HOME_STATS_CARDS),
             "home_library_cards": json.dumps(plexpy.CONFIG.HOME_LIBRARY_CARDS),
@@ -3908,9 +3932,16 @@ class WebInterface(object):
         if not app:
             return {'result': 'error', 'message': 'No app specified for import'}
 
-        if database_file:
+        if database_path:
+            database_file_name = os.path.basename(database_path)
+            database_cache_path = os.path.join(plexpy.CONFIG.CACHE_DIR, database_file_name + '.import.db')
+            logger.info("Received database file '%s' for import. Saving to cache: %s",
+                        database_file_name, database_cache_path)
+            database_path = shutil.copyfile(database_path, database_cache_path)
+
+        elif database_file:
             database_path = os.path.join(plexpy.CONFIG.CACHE_DIR, database_file.filename + '.import.db')
-            logger.info("Received database file '%s' for import. Saving to cache '%s'.",
+            logger.info("Received database file '%s' for import. Saving to cache: %s",
                         database_file.filename, database_path)
             with open(database_path, 'wb') as f:
                 while True:
@@ -4611,7 +4642,7 @@ class WebInterface(object):
         """ See real_pms_image_proxy docs string"""
 
         refresh = False
-        if kwargs.get('refresh'):
+        if kwargs.get('refresh') or 'no-cache' in cherrypy.request.headers.get('Cache-Control', ''):
             refresh = False if get_session_user_id() else True
 
         kwargs['refresh'] = refresh
@@ -4637,7 +4668,7 @@ class WebInterface(object):
                 background (str):       Hex color, e.g. 282828
                 blur (str):             3
                 img_format (str):       png
-                fallback (str):         "poster", "cover", "art", "poster-live", "art-live", "art-live-full"
+                fallback (str):         "poster", "cover", "art", "poster-live", "art-live", "art-live-full", "user"
                 refresh (bool):         True or False whether to refresh the image cache
                 return_hash (bool):     True or False to return the self-hosted image hash instead of the image
 
@@ -4645,6 +4676,8 @@ class WebInterface(object):
                 None
             ```
         """
+        cherrypy.response.headers['Cache-Control'] = 'max-age=2592000'  # 30 days
+
         if isinstance(img, str) and img.startswith('interfaces/default/images'):
             fp = os.path.join(plexpy.PROG_DIR, 'data', img)
             return serve_file(path=fp, content_type='image/png')
@@ -4727,6 +4760,7 @@ class WebInterface(object):
 
             except Exception as e:
                 logger.warn("Failed to get image %s, falling back to %s." % (img, fallback))
+                cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
                 if fallback in common.DEFAULT_IMAGES:
                     fbi = common.DEFAULT_IMAGES[fallback]
                     fp = os.path.join(plexpy.PROG_DIR, 'data', fbi)

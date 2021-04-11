@@ -589,8 +589,8 @@
                             stream_view_offset.data('last_view_offset', s.view_offset).data('view_offset', s.view_offset);
                         }
 
-                        // Update the progress bars, percent - 3 because of 3px padding-right
-                        $('#buffer-bar-' + key).css({width: parseInt(s.transcode_progress) - 3 + '%'}).html(s.transcode_progress + '%')
+                        // Update the progress bars
+                        $('#buffer-bar-' + key).css({width: parseInt(s.transcode_progress) + '%'}).html(s.transcode_progress + '%')
                             .attr('data-original-title', 'Transcoder Progress ' + s.transcode_progress + '%');
                         if (s.live !== 1) {
                             var progress_bar = $('#progress-bar-' + key);
@@ -691,7 +691,7 @@
                     var stream_duration = parseInt($(this).data('stream_duration'));
                     var progress_percent = Math.floor(view_offset / stream_duration * 100);
                     progress_percent = (progress_percent >= 0) ? Math.min(progress_percent, 100) : 100;
-                    $(this).css({width: progress_percent - 3 + '%'}).html(progress_percent + '%')
+                    $(this).css({width: progress_percent + '%'}).html(progress_percent + '%')
                         .attr('data-original-title', 'Stream Progress ' + progress_percent + '%')
                         .data('view_offset', Math.min(view_offset + 1000, stream_duration));
                 }
@@ -778,6 +778,7 @@
 <script>
     function statsCardCallback() {
         $('.dashboard-stats-instance .dashboard-stats-info-scroller').scrollbar();
+        loadAllBlurHash();
 
         function changeImages(elem) {
             var stat_id = $(elem).data('stat_id');
@@ -811,7 +812,8 @@
                         .addClass('svg-icon library-' + library_type);
                 }
             } else if (stat_id === 'top_users') {
-                $('#stats-thumb-' + stat_id).css('background-image', 'url(' + (user_thumb || 'images/gravatar-default.png') + ')');
+                loadBlurHash($('#stats-background-' + stat_id), page('pms_image_proxy', user_thumb || 'interfaces/default/images/gravatar-default.png', null, 80, 80, 40, '282828', 0, 'user'));
+                $('#stats-thumb-' + stat_id).css('background-image', 'url(' + page('pms_image_proxy', user_thumb || 'interfaces/default/images/gravatar-default.png', null, 80, 80, null, null, null, 'user') + ')');
                 if (user_id) {
                     href = page('user', user_id);
                 }

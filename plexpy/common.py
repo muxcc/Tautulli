@@ -63,7 +63,8 @@ DEFAULT_IMAGES = {
     'art': DEFAULT_ART,
     'poster-live': DEFAULT_LIVE_TV_POSTER_THUMB,
     'art-live': DEFAULT_LIVE_TV_ART,
-    'art-live-full': DEFAULT_LIVE_TV_ART_FULL
+    'art-live-full': DEFAULT_LIVE_TV_ART_FULL,
+    'user': DEFAULT_USER_THUMB
 }
 
 MEDIA_TYPE_HEADERS = {
@@ -77,6 +78,27 @@ MEDIA_TYPE_HEADERS = {
     'video': 'Videos',
     'audio': 'Tracks',
     'photo': 'Photos'
+}
+
+MEDIA_TYPE_VALUES = {
+    1: 'movie',
+    2: 'show',
+    3: 'season',
+    4: 'episode',
+    5: 'trailer',
+    6: 'comic',
+    7: 'person',
+    8: 'artist',
+    9: 'album',
+    10: 'track',
+    11: 'picture',
+    12: 'clip',
+    13: 'photo',
+    14: 'photoalbum',
+    15: 'playlist',
+    16: 'playlistFolder',
+    18: 'collection',
+    42: 'optimizedVersion'
 }
 
 PLATFORM_NAME_OVERRIDES = {
@@ -499,7 +521,6 @@ NOTIFICATION_PARAMETERS = [
              {'name': 'Labels', 'type': 'str', 'value': 'labels', 'description': 'A list of labels for the item.'},
              {'name': 'Collections', 'type': 'str', 'value': 'collections', 'description': 'A list of collections for the item.'},
              {'name': 'Summary', 'type': 'str', 'value': 'summary', 'description': 'A short plot summary for the item.'},
-             {'name': 'Summary_short', 'type': 'str', 'value': 'summary_short', 'description': 'A very short plot summary for the item.'},
              {'name': 'Tagline', 'type': 'str', 'value': 'tagline', 'description': 'A tagline for the media item.'},
              {'name': 'Rating', 'type': 'float', 'value': 'rating', 'description': 'The rating (out of 10) for the item.'},
              {'name': 'Critic Rating', 'type': 'int', 'value': 'critic_rating', 'description': 'The critic rating (%) for the item.', 'help_text': 'Ratings source must be Rotten Tomatoes for the Plex Movie agent'},
@@ -509,8 +530,6 @@ NOTIFICATION_PARAMETERS = [
              {'name': 'Poster URL', 'type': 'str', 'value': 'poster_url', 'description': 'A URL for the movie, TV show, or album poster.'},
              {'name': 'Plex ID', 'type': 'str', 'value': 'plex_id', 'description': 'The Plex ID for the item.', 'example': 'e.g. 5d7769a9594b2b001e6a6b7e'},
              {'name': 'Plex URL', 'type': 'str', 'value': 'plex_url', 'description': 'The Plex URL to your server for the item.'},
-             {'name': 'Кинопоиск ID', 'type': 'str', 'value': 'kinopoisk_id', 'description': 'The Кинопоиск ID for the movie.', 'example': 'e.g. 1225587'},
-             {'name': 'Кинопоиск URL', 'type': 'str', 'value': 'kinopoisk_url', 'description': 'The Кинопоиск URL for the movie.'},
              {'name': 'IMDB ID', 'type': 'str', 'value': 'imdb_id', 'description': 'The IMDB ID for the movie.', 'example': 'e.g. tt2488496'},
              {'name': 'IMDB URL', 'type': 'str', 'value': 'imdb_url', 'description': 'The IMDB URL for the movie.'},
              {'name': 'TVDB ID', 'type': 'int', 'value': 'thetvdb_id', 'description': 'The TVDB ID for the TV show.', 'example': 'e.g. 121361'},
@@ -563,6 +582,7 @@ NOTIFICATION_PARAMETERS = [
              {'name': 'File', 'type': 'str', 'value': 'file', 'description': 'The file path to the item.'},
              {'name': 'Filename', 'type': 'str', 'value': 'filename', 'description': 'The file name of the item.'},
              {'name': 'File Size', 'type': 'int', 'value': 'file_size', 'description': 'The file size of the item.'},
+             {'name': 'Guid', 'type': 'str', 'value': 'guid', 'description': 'The full guid for the item.'},
              {'name': 'Section ID', 'type': 'int', 'value': 'section_id', 'description': 'The unique identifier for the library.'},
              {'name': 'Rating Key', 'type': 'int', 'value': 'rating_key', 'description': 'The unique identifier for the movie, episode, or track.'},
              {'name': 'Parent Rating Key', 'type': 'int', 'value': 'parent_rating_key', 'description': 'The unique identifier for the season or album.'},

@@ -888,7 +888,8 @@ class ANDROIDAPP(Notifier):
     """
     NAME = 'Tautulli Remote Android App'
     _DEFAULT_CONFIG = {'device_id': '',
-                       'priority': 3
+                       'priority': 3,
+                       'notification_type': 0
                        }
 
     def agent_notify(self, subject='', body='', action='', notification_id=None, **kwargs):
@@ -907,6 +908,7 @@ class ANDROIDAPP(Notifier):
                           'body': body,
                           'action': action,
                           'priority': self.config['priority'],
+                          'notification_type': self.config['notification_type'],
                           'session_key': pretty_metadata.parameters.get('session_key', ''),
                           'session_id': pretty_metadata.parameters.get('session_id', ''),
                           'user_id': pretty_metadata.parameters.get('user_id', ''),
@@ -1022,7 +1024,8 @@ class ANDROIDAPP(Notifier):
                 'label': 'Device',
                 'description': 'No mobile devices registered with OneSignal. '
                                '<a data-tab-destination="android_app" data-toggle="tab" data-dismiss="modal">'
-                               'Get the Android App</a> and register a device.',
+                               'Get the Android App</a> and register a device.<br>'
+                               'Note: Only devices registered with a valid OneSignal ID will appear in the list.',
                 'input_type': 'help'
                 })
         else:
@@ -1032,7 +1035,8 @@ class ANDROIDAPP(Notifier):
                 'name': 'androidapp_device_id',
                 'description': 'Set your mobile device or '
                                '<a data-tab-destination="android_app" data-toggle="tab" data-dismiss="modal">'
-                               'register a new device</a> with Tautulli.',
+                               'register a new device</a> with Tautulli.<br>'
+                               'Note: Only devices registered with a valid OneSignal ID will appear in the list.',
                 'input_type': 'select',
                 'select_options': devices
                 })
@@ -1044,6 +1048,17 @@ class ANDROIDAPP(Notifier):
             'description': 'Set the notification priority.',
             'input_type': 'select',
             'select_options': {1: 'Minimum', 2: 'Low', 3: 'Normal', 4: 'High'}
+            })
+        config_option.append({
+            'label': 'Notification Image Type',
+            'value': self.config['notification_type'],
+            'name': 'androidapp_notification_type',
+            'description': 'Set the notification image type.',
+            'input_type': 'select',
+            'select_options': {0: 'No notification image',
+                               1: 'Small image (Expandable text)',
+                               2: 'Large image (Non-expandable text)'
+                               }
             })
 
         return config_option
@@ -1353,14 +1368,19 @@ class EMAIL(Notifier):
                        'cc': [],
                        'bcc': [],
                        'smtp_server': '',
-                       'smtp_port': 25,
+                       'smtp_port': 465,
                        'smtp_user': '',
                        'smtp_password': '',
-                       'tls': 0,
+                       'tls': 2,
                        'html_support': 1
                        }
 
     def agent_notify(self, subject='', body='', action='', **kwargs):
+        if not self.config['smtp_server']:
+            logger.error("Tautulli Notifiers :: %s notification failed: %s",
+                         self.NAME, "Missing SMTP server")
+            return False
+
         if self.config['html_support']:
             plain = MIMEText(None, 'plain', 'utf-8')
             plain.replace_header('Content-Transfer-Encoding', 'quoted-printable')
@@ -1396,10 +1416,14 @@ class EMAIL(Notifier):
         success = False
 
         try:
-            mailserver = smtplib.SMTP(self.config['smtp_server'], self.config['smtp_port'])
+            if self.config['tls'] == 2:
+                mailserver = smtplib.SMTP_SSL(self.config['smtp_server'], self.config['smtp_port'])
+            else:
+                mailserver = smtplib.SMTP(self.config['smtp_server'], self.config['smtp_port'])
+
             mailserver.ehlo()
 
-            if self.config['tls']:
+            if self.config['tls'] == 1:
                 mailserver.starttls()
                 mailserver.ehlo()
 
@@ -1484,10 +1508,10 @@ class EMAIL(Notifier):
                           'description': 'Port for the SMTP server.',
                           'input_type': 'number'
                           },
-                         {'label': 'SMTP User',
+                         {'label': 'SMTP Username',
                           'value': self.config['smtp_user'],
                           'name': 'email_smtp_user',
-                          'description': 'User for the SMTP server.',
+                          'description': 'Username for the SMTP server.',
                           'input_type': 'text'
                           },
                          {'label': 'SMTP Password',
@@ -1496,11 +1520,14 @@ class EMAIL(Notifier):
                           'description': 'Password for the SMTP server.',
                           'input_type': 'password'
                           },
-                         {'label': 'TLS',
+                         {'label': 'Encryption',
                           'value': self.config['tls'],
                           'name': 'email_tls',
-                          'description': 'Does the server use encryption.',
-                          'input_type': 'checkbox'
+                          'description': 'Send emails encrypted using SSL or TLS.',
+                          'input_type': 'select',
+                          'select_options': {0: 'None',
+                                             1: 'TLS/STARTTLS (Typically port 587)',
+                                             2: 'SSL/TLS (Typically port 465)'}
                           },
                          {'label': 'Enable HTML Support',
                           'value': self.config['html_support'],
