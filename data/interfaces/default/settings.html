@@ -70,13 +70,6 @@
                         </div>
                         % endif
                         <div class="padded-header">
-                            <h3>Tautulli News</h3>
-                        </div>
-                        <div id="tautulli-news">
-                            <div class='text-muted'><i class="fa fa-refresh fa-spin"></i> Loading news...</div>
-                            <br>
-                        </div>
-                        <div class="padded-header">
                             <h3>Tautulli Configuration</h3>
                         </div>
                         <div id="plexpy-configuration-table">
@@ -2802,11 +2795,11 @@ $(document).ready(function() {
                 var key = libraries_list[i].section_id;
                 if (key === 999999) { continue; }  // Don't show Live TV library
                 $('#sortable_home_library_cards').append(
-                    '<li class="card card-sortable">' + 
-                        '<div class="card-handle"><i class="fa fa-bars"></i></div>' + 
-                        '<label>' + 
-                            '<input type="checkbox" id="hlcard-' + key + '" name="hlcard-' + key + '" value="' + key + '"> ' + title + 
-                        '</label>' + 
+                    '<li class="card card-sortable">' +
+                        '<div class="card-handle"><i class="fa fa-bars"></i></div>' +
+                        '<label>' +
+                            '<input type="checkbox" id="hlcard-' + key + '" name="hlcard-' + key + '" value="' + key + '"> ' + title +
+                        '</label>' +
                     '</li>'
                 );
             }
