@@ -68,7 +68,7 @@ def process_queue():
     queue = plexpy.NOTIFY_QUEUE
     while True:
         params = queue.get()
-        
+
         if params is None:
             break
         elif params:
@@ -202,7 +202,7 @@ def notify_conditions(notify_action=None, stream_data=None, timeline_data=None):
 
             if notify_action == 'on_stop':
                 evaluated = (plexpy.CONFIG.NOTIFY_CONSECUTIVE or
-                    (stream_data['media_type'] == 'movie' and progress_percent < plexpy.CONFIG.MOVIE_WATCHED_PERCENT) or 
+                    (stream_data['media_type'] == 'movie' and progress_percent < plexpy.CONFIG.MOVIE_WATCHED_PERCENT) or
                     (stream_data['media_type'] == 'episode' and progress_percent < plexpy.CONFIG.TV_WATCHED_PERCENT))
 
             elif notify_action == 'on_resume':
@@ -1021,6 +1021,7 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
         'labels': ', '.join(notify_params['labels']),
         'collections': ', '.join(notify_params['collections']),
         'summary': notify_params['summary'],
+        'summary_short' : notify_params['summary'][:375]+" ...",
         'tagline': notify_params['tagline'],
         'rating': rating,
         'critic_rating':  critic_rating,
