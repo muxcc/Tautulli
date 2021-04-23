@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # -*- coding: utf-8 -*-
 
 # This file is part of Tautulli.
@@ -15,7 +17,8 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Tautulli.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import unicode_literals
+from Tautulli import main
 
-PLEXPY_BRANCH = "master"
-PLEXPY_RELEASE_VERSION = "v2.7.1"
+# Call main() from Tautulli.py
+if __name__ == "__main__":
+    main()

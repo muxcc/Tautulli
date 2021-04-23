@@ -1,5 +1,20 @@
 # Changelog
 
+## v2.7.1 (2021-04-22)
+
+* Notifications:
+  * Fix: Recently added single episode being sent as a show notification. (#1420)
+* Newsletters:
+  * Change: Ignore items with incorrect added at dates in the future.
+* Exporter:
+  * Fix: Exporting not working for libraries, collections, and playlists. (#1408)
+* UI:
+  * Fix: Collections and playlist tabs not loading on library and user pages. (#1408)
+  * Fix: Header overlapping graphs tabs on mobile layout. 
+  * Change: Rename "Plays by Period" graph tab to "Media Type".
+  * Removed: Clear logs button removed from main Tautulli logs.
+
+
 ## v2.7.0 (2021-04-10)
 
 * History:
@@ -17,7 +32,7 @@
   * Fix: Fixed spacing of rating images on the media info pages.
   * Fix: Fixed refreshing cached image in the browser.
   * Fix: Bootstrap tooltips logging javascript errors in some instances.
-  * Fix: Activity card progress bar not filling at 100%.
+  * Fix: Activity card progress bar not filling at 100%. (#1404)
   * New: Added blurred background to the Most Active Users statistics card.
   * New: Added transcode decision filter for all history tables.
   * New: Added an error popup message if the Plex.tv token is no longer valid when visiting the settings page.
