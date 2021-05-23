@@ -442,11 +442,11 @@ def initialize_scheduler():
         start_jobs = not len(SCHED.get_jobs())
 
         # Update check
-        github_minutes = CONFIG.CHECK_GITHUB_INTERVAL if CONFIG.CHECK_GITHUB_INTERVAL and CONFIG.CHECK_GITHUB else 0
+        github_hours = CONFIG.CHECK_GITHUB_INTERVAL if CONFIG.CHECK_GITHUB_INTERVAL and CONFIG.CHECK_GITHUB else 0
         pms_update_check_hours = CONFIG.PMS_UPDATE_CHECK_INTERVAL if 1 <= CONFIG.PMS_UPDATE_CHECK_INTERVAL else 24
 
         schedule_job(versioncheck.check_update, 'Check GitHub for updates',
-                     hours=0, minutes=github_minutes, seconds=0, args=(True, True))
+                     hours=github_hours, minutes=0, seconds=0, args=(True, True))
 
         backup_hours = CONFIG.BACKUP_INTERVAL if 1 <= CONFIG.BACKUP_INTERVAL <= 24 else 6
 
@@ -723,7 +723,8 @@ def dbcheck():
     c_db.execute(
         'CREATE TABLE IF NOT EXISTS user_login (id INTEGER PRIMARY KEY AUTOINCREMENT, '
         'timestamp INTEGER, user_id INTEGER, user TEXT, user_group TEXT, '
-        'ip_address TEXT, host TEXT, user_agent TEXT, success INTEGER DEFAULT 1)'
+        'ip_address TEXT, host TEXT, user_agent TEXT, success INTEGER DEFAULT 1,'
+        'expiry TEXT, jwt_token TEXT)'
     )
 
     # notifiers table :: This table keeps record of the notification agent settings
@@ -757,7 +758,7 @@ def dbcheck():
         'CREATE TABLE IF NOT EXISTS notify_log (id INTEGER PRIMARY KEY AUTOINCREMENT, timestamp INTEGER, '
         'session_key INTEGER, rating_key INTEGER, parent_rating_key INTEGER, grandparent_rating_key INTEGER, '
         'user_id INTEGER, user TEXT, notifier_id INTEGER, agent_id INTEGER, agent_name TEXT, notify_action TEXT, '
-        'subject_text TEXT, body_text TEXT, script_args TEXT, success INTEGER DEFAULT 0)'
+        'subject_text TEXT, body_text TEXT, script_args TEXT, success INTEGER DEFAULT 0, tag TEXT)'
     )
 
     # newsletters table :: This table keeps record of the newsletter settings
@@ -1963,6 +1964,15 @@ def dbcheck():
             'UPDATE notify_log SET success = 1'
         )
 
+    # Upgrade notify_log table from earlier versions
+    try:
+        c_db.execute('SELECT tag FROM notify_log')
+    except sqlite3.OperationalError:
+        logger.debug("Altering database. Updating database table notify_log.")
+        c_db.execute(
+            'ALTER TABLE notify_log ADD COLUMN tag TEXT'
+        )
+
     # Upgrade newsletter_log table from earlier versions
     try:
         c_db.execute('SELECT start_time FROM newsletter_log')
@@ -2298,6 +2308,18 @@ def dbcheck():
         logger.debug("Altering database. Updating database table user_login.")
         c_db.execute(
             'ALTER TABLE user_login ADD COLUMN success INTEGER DEFAULT 1'
+        )
+
+    # Upgrade user_login table from earlier versions
+    try:
+        c_db.execute('SELECT expiry FROM user_login')
+    except sqlite3.OperationalError:
+        logger.debug("Altering database. Updating database table user_login.")
+        c_db.execute(
+            'ALTER TABLE user_login ADD COLUMN expiry TEXT'
+        )
+        c_db.execute(
+            'ALTER TABLE user_login ADD COLUMN jwt_token TEXT'
         )
 
     # Rename notifiers in the database

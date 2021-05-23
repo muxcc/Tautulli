@@ -137,6 +137,7 @@ _CONFIG_DEFINITIONS = {
     'HTTP_RATE_LIMIT_ATTEMPTS': (int, 'General', 10),
     'HTTP_RATE_LIMIT_ATTEMPTS_INTERVAL': (int, 'General', 300),
     'HTTP_RATE_LIMIT_LOCKOUT_TIME': (int, 'General', 300),
+    'HTTP_THREAD_POOL': (int, 'General', 10),
     'INTERFACE': (str, 'General', 'default'),
     'IMGUR_CLIENT_ID': (str, 'Monitoring', ''),
     'JOURNAL_MODE': (str, 'Advanced', 'WAL'),
@@ -172,6 +173,8 @@ _CONFIG_DEFINITIONS = {
     'NOTIFY_CONCURRENT_THRESHOLD': (int, 'Monitoring', 2),
     'NOTIFY_NEW_DEVICE_INITIAL_ONLY': (int, 'Monitoring', 1),
     'NOTIFY_SERVER_CONNECTION_THRESHOLD': (int, 'Monitoring', 60),
+    'NOTIFY_SERVER_UPDATE_REPEAT': (int, 'Monitoring', 0),
+    'NOTIFY_PLEXPY_UPDATE_REPEAT': (int, 'Monitoring', 0),
     'PLEXPY_AUTO_UPDATE': (int, 'General', 0),
     'REFRESH_LIBRARIES_INTERVAL': (int, 'Monitoring', 12),
     'REFRESH_LIBRARIES_ON_STARTUP': (int, 'Monitoring', 1),
@@ -559,3 +562,9 @@ class Config(object):
             self.HOME_STATS_CARDS = home_stats_cards
 
             self.CONFIG_VERSION = 18
+
+        if self.CONFIG_VERSION == 18:
+            self.CHECK_GITHUB_INTERVAL = (
+                    int(self.CHECK_GITHUB_INTERVAL // 60)
+                    + (self.CHECK_GITHUB_INTERVAL % 60 > 0)
+            )

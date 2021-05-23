@@ -21,6 +21,7 @@ from future.builtins import str
 from future.builtins import object
 from future.moves.urllib.parse import parse_qsl
 
+import arrow
 import httpagentparser
 from datetime import datetime, timedelta
 
@@ -849,10 +850,14 @@ class Users(object):
 
         return filters_list
 
-    def set_user_login(self, user_id=None, user=None, user_group=None, ip_address=None, host=None, user_agent=None, success=0):
+    def set_user_login(self, user_id=None, user=None, user_group=None, ip_address=None, host=None,
+                       user_agent=None, success=0, expiry=None, jwt_token=None):
 
         if user_id is None or str(user_id).isdigit():
             monitor_db = database.MonitorDatabase()
+
+            if expiry is not None:
+                expiry = helpers.datetime_to_iso(expiry)
 
             keys = {'timestamp': helpers.timestamp(),
                     'user_id': user_id}
@@ -862,14 +867,49 @@ class Users(object):
                       'ip_address': ip_address,
                       'host': host,
                       'user_agent': user_agent,
-                      'success': success}
+                      'success': success,
+                      'expiry': expiry,
+                      'jwt_token': jwt_token}
 
             try:
                 monitor_db.upsert(table_name='user_login', key_dict=keys, value_dict=values)
             except Exception as e:
                 logger.warn("Tautulli Users :: Unable to execute database query for set_login_log: %s." % e)
 
-    def get_datatables_user_login(self, user_id=None, kwargs=None):
+    def get_user_login(self, jwt_token):
+        monitor_db = database.MonitorDatabase()
+        result = monitor_db.select_single('SELECT * FROM user_login '
+                                          'WHERE jwt_token = ?',
+                                          [jwt_token])
+        return result
+
+    def clear_user_login_token(self, jwt_token=None, row_ids=None):
+        monitor_db = database.MonitorDatabase()
+
+        if jwt_token:
+            logger.debug("Tautulli Users :: Clearing user JWT token.")
+            try:
+                monitor_db.action('UPDATE user_login SET jwt_token = NULL '
+                                  'WHERE jwt_token = ?',
+                                  [jwt_token])
+            except Exception as e:
+                logger.error("Tautulli Users :: Unable to clear user JWT token: %s.", e)
+                return False
+
+        elif row_ids and row_ids is not None:
+            row_ids = list(map(helpers.cast_to_int, row_ids.split(',')))
+            logger.debug("Tautulli Users :: Clearing JWT tokens for row_ids %s.", row_ids)
+            try:
+                monitor_db.action('UPDATE user_login SET jwt_token = NULL '
+                                  'WHERE id in ({})'.format(','.join(['?'] * len(row_ids))),
+                                  row_ids)
+            except Exception as e:
+                logger.error("Tautulli Users :: Unable to clear JWT tokens: %s.", e)
+                return False
+
+        return True
+
+    def get_datatables_user_login(self, user_id=None, jwt_token=None, kwargs=None):
         default_return = {'recordsFiltered': 0,
                           'recordsTotal': 0,
                           'draw': 0,
@@ -885,7 +925,8 @@ class Users(object):
         else:
             custom_where = [['user_login.user_id', user_id]] if user_id else []
 
-        columns = ['user_login.timestamp',
+        columns = ['user_login.id AS row_id',
+                   'user_login.timestamp',
                    'user_login.user_id',
                    'user_login.user',
                    'user_login.user_group',
@@ -893,6 +934,8 @@ class Users(object):
                    'user_login.host',
                    'user_login.user_agent',
                    'user_login.success',
+                   'user_login.expiry',
+                   'user_login.jwt_token',
                    '(CASE WHEN users.friendly_name IS NULL OR TRIM(users.friendly_name) = "" \
                     THEN users.username ELSE users.friendly_name END) AS friendly_name'
                    ]
@@ -916,7 +959,16 @@ class Users(object):
         for item in results:
             (os, browser) = httpagentparser.simple_detect(item['user_agent'])
 
-            row = {'timestamp': item['timestamp'],
+            expiry = None
+            current = False
+            if item['jwt_token'] and item['expiry']:
+                _expiry = helpers.iso_to_datetime(item['expiry'])
+                if _expiry > arrow.now():
+                    expiry = _expiry.strftime('%Y-%m-%d %H:%M:%S')
+                current = (item['jwt_token'] == jwt_token)
+
+            row = {'row_id': item['row_id'],
+                   'timestamp': item['timestamp'],
                    'user_id': item['user_id'],
                    'user_group': item['user_group'],
                    'ip_address': item['ip_address'],
@@ -925,6 +977,8 @@ class Users(object):
                    'os': os,
                    'browser': browser,
                    'success': item['success'],
+                   'expiry': expiry,
+                   'current': current,
                    'friendly_name': item['friendly_name'] or item['user']
                    }
 
