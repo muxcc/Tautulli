@@ -288,25 +288,23 @@ function isPrivateIP(ip_address) {
 }
 
 function humanTime(seconds) {
-    var text;
-    if (seconds >= 86400) {
-        text = '<h3>' + Math.floor(moment.duration(seconds, 'seconds').asDays()) + '</h3><p> days</p>' + '<h3>' +
-            Math.floor(moment.duration((seconds % 86400), 'seconds').asHours()) + '</h3><p> hrs</p>' + '<h3>' +
-            Math.floor(moment.duration(((seconds % 86400) % 3600), 'seconds').asMinutes()) + '</h3><p> mins</p>';
-        return text;
-    } else if (seconds >= 3600) {
-        text = '<h3>' + Math.floor(moment.duration((seconds % 86400), 'seconds').asHours()) + '</h3><p> hrs</p>' +
-            '<h3>' + Math.floor(moment.duration(((seconds % 86400) % 3600), 'seconds').asMinutes()) +
-            '</h3><p> mins</p>';
-        return text;
-    } else if (seconds >= 60) {
-        text = '<h3>' + Math.floor(moment.duration(((seconds % 86400) % 3600), 'seconds').asMinutes()) +
-            '</h3><p> mins</p>';
-        return text;
+    var d = Math.floor(moment.duration(seconds, 'seconds').asDays());
+    var h = Math.floor(moment.duration((seconds % 86400), 'seconds').asHours());
+    var m = Math.round(moment.duration(((seconds % 86400) % 3600), 'seconds').asMinutes());
+
+    var text = '';
+    if (d > 0) {
+        text = '<h3>' + d + '</h3><p> day' + ((d > 1) ? 's' : '') + '</p>'
+             + '<h3>' + h + '</h3><p> hr' + ((h > 1) ? 's' : '') + '</p>'
+             + '<h3>' + m + '</h3><p> min' + ((m > 1) ? 's' : '') + '</p>';
+    } else if (h > 0) {
+        text = '<h3>' + h + '</h3><p> hr' + ((h > 1) ? 's' : '') + '</p>'
+             + '<h3>' + m + '</h3><p> min' + ((m > 1) ? 's' : '') + '</p>';
     } else {
-        text = '<h3>0</h3><p> mins</p>';
-        return text;
+        text = '<h3>' + m + '</h3><p> min' + ((m > 1) ? 's' : '') + '</p>';
     }
+
+    return text
 }
 
 String.prototype.toProperCase = function () {
@@ -893,7 +891,7 @@ function loadBlurHash(elem, src) {
 }
 
 function _toggleRevealToken(elem, click) {
-    var input = elem.parent().next('input');
+    var input = elem.parent().siblings('input');
     if ((input.prop('type') === 'password' && click) || !input.val()) {
         input.prop('type', 'text');
         elem.children('.fa').removeClass('fa-eye-slash').addClass('fa-eye');

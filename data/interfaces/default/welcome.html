@@ -80,11 +80,15 @@
                         <label for="http_password">HTTP Password</label>
                         <div class="row">
                             <div class="col-xs-8">
-                                <input type="password" class="form-control auth-settings" id="http_password" name="http_password" value="" size="30" autocomplete="new-password">
+                                <div class="input-group">
+                                    <input type="password" class="form-control auth-settings" id="http_password" name="http_password" value="" size="30" autocomplete="new-password">
+                                    <span class="input-group-btn">
+                                        <button class="btn btn-form reveal-token" type="button"><i class="fa fa-eye-slash"></i></button>
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <input type="hidden" class="form-control" name="http_hash_password" id="http_hash_password" value="1">
                     <input type="hidden" class="form-control" name="http_plex_admin" id="http_plex_admin" value="1">
                     <input type="hidden" id="authentication_valid" data-validate="validateAuthentication" value="">
                     <span style="display: none;" id="authentication-status"></span>

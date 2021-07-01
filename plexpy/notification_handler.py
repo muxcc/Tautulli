@@ -220,7 +220,6 @@ def notify_conditions(notify_action=None, stream_data=None, timeline_data=None, 
             evaluated = False
 
     # Recently Added notifications
-    # Recently Added notifications
     elif timeline_data:
 
         # Check if notifications enabled for library
@@ -296,7 +295,7 @@ def notify_custom_conditions(notifier_id=None, parameters=None):
             # Cast the condition values to the correct type
             try:
                 if parameter_type == 'str':
-                    values = [str(v).lower() for v in values]
+                    values = ['' if v == '~' else str(v).lower() for v in values]
 
                 elif parameter_type == 'int':
                     values = [helpers.cast_to_int(v) for v in values]
@@ -574,9 +573,13 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
 
     child_metadata = grandchild_metadata = []
     for key in kwargs.pop('child_keys', []):
-        child_metadata.append(pmsconnect.PmsConnect().get_metadata_details(rating_key=key))
+        child = pmsconnect.PmsConnect().get_metadata_details(rating_key=key)
+        if child:
+            child_metadata.append(child)
     for key in kwargs.pop('grandchild_keys', []):
-        grandchild_metadata.append(pmsconnect.PmsConnect().get_metadata_details(rating_key=key))
+        grandchild = pmsconnect.PmsConnect().get_metadata_details(rating_key=key)
+        if grandchild:
+            grandchild_metadata.append(grandchild)
 
     # Session values
     session = session or {}
@@ -642,9 +645,7 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
 
     # Check external guids
     for guid in notify_params['guids']:
-        if 'kinopoisk2://' in guid:
-            notify_params['kinopoisk_id'] = guid.split('kinopoisk2://')[1]
-        elif 'imdb://' in guid:
+        if 'imdb://' in guid:
             notify_params['imdb_id'] = guid.split('imdb://')[1]
         elif 'tmdb://' in guid:
             notify_params['themoviedb_id'] = guid.split('tmdb://')[1]
@@ -654,11 +655,6 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
     # Get media IDs from guid and build URLs
     if 'plex://' in notify_params['guid']:
         notify_params['plex_id'] = notify_params['guid'].split('plex://')[1].split('/')[1]
-
-    if 'kinopoisk2://' in notify_params['guid'] or notify_params['kinopoisk_id']:
-        notify_params['kinopoisk_id'] = notify_params['kinopoisk_id'] or notify_params['guid'].split('kinopoisk2://')[1].split('?')[0]
-        notify_params['kinopoisk_url'] = 'https://www.kinopoisk.ru/film/' + notify_params['kinopoisk_id']
-        notify_params['trakt_url'] = 'https://trakt.tv/search/kinopoisk/' + notify_params['kinopoisk_id']
 
     if 'imdb://' in notify_params['guid'] or notify_params['imdb_id']:
         notify_params['imdb_id'] = notify_params['imdb_id'] or notify_params['guid'].split('imdb://')[1].split('?')[0]
@@ -1076,7 +1072,7 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
         'labels': ', '.join(notify_params['labels']),
         'collections': ', '.join(notify_params['collections']),
         'summary': notify_params['summary'],
-        'summary_short' : notify_params['summary'][:400]+" ...",
+        'summary_short' : notify_params['summary'][:380]+" ...",
         'tagline': notify_params['tagline'],
         'rating': rating,
         'critic_rating':  critic_rating,
@@ -1088,8 +1084,6 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
         'poster_url': notify_params['poster_url'],
         'plex_id': notify_params['plex_id'],
         'plex_url': notify_params['plex_url'],
-        'kinopoisk_id': notify_params['kinopoisk_id'],
-        'kinopoisk_url': notify_params['kinopoisk_url'],
         'imdb_id': notify_params['imdb_id'],
         'imdb_url': notify_params['imdb_url'],
         'thetvdb_id': notify_params['thetvdb_id'],
@@ -1825,6 +1819,25 @@ def str_format(s, parameters):
     return s
 
 
+def str_eval(field_name, kwargs):
+    field_name = field_name.strip('`')
+    allowed_names = {
+        'bool': bool,
+        'divmod': helpers.helper_divmod,
+        'float': helpers.cast_to_float,
+        'int': helpers.cast_to_int,
+        'len': helpers.helper_len,
+        'round': helpers.helper_round,
+        'str': str
+    }
+    allowed_names.update(kwargs)
+    code = compile(field_name, '<string>', 'eval')
+    for name in code.co_names:
+        if name not in allowed_names:
+            raise NameError('Use of {name} not allowed'.format(name=name))
+    return eval(code, {'__builtins__': {}}, allowed_names)
+
+
 class CustomFormatter(Formatter):
     def __init__(self, default='{{{0}}}'):
         self.default = default
@@ -1888,20 +1901,22 @@ class CustomFormatter(Formatter):
             prefix = None
             suffix = None
 
-            if real_format_string != format_string[1:-1]:
-                prefix_split = real_format_string.split('<')
-                if len(prefix_split) == 2:
-                    prefix = prefix_split[0].replace('\\n', '\n')
-                    real_format_string = prefix_split[1]
+            matches = re.findall(r'`.*?`', real_format_string)
+            temp_format_string = re.sub(r'`.*`', '{}', real_format_string)
 
-                suffix_split = real_format_string.split('>')
-                if len(suffix_split) == 2:
-                    suffix = suffix_split[1].replace('\\n', '\n')
-                    real_format_string = suffix_split[0]
+            prefix_split = temp_format_string.split('<')
+            if len(prefix_split) == 2:
+                prefix = prefix_split[0].replace('\\n', '\n')
+                temp_format_string = prefix_split[1]
 
-                if prefix or suffix:
-                    real_format_string = '{' + real_format_string + '}'
-                    _, field_name, format_spec, conversion, _, _ = next(self.parse(real_format_string))
+            suffix_split = temp_format_string.split('>')
+            if len(suffix_split) == 2:
+                suffix = suffix_split[1].replace('\\n', '\n')
+                temp_format_string = suffix_split[0]
+
+            if prefix or suffix:
+                real_format_string = '{' + temp_format_string.format(*matches) + '}'
+                _, field_name, format_spec, conversion, _, _ = next(self.parse(real_format_string))
 
             yield literal_text, field_name, format_spec, conversion, prefix, suffix
 
@@ -1937,10 +1952,19 @@ class CustomFormatter(Formatter):
                     # used later on, then an exception will be raised
                     auto_arg_index = False
 
-                # given the field_name, find the object it references
-                #  and the argument it came from
-                obj, arg_used = self.get_field(field_name, args, kwargs)
-                used_args.add(arg_used)
+                if plexpy.CONFIG.NOTIFY_TEXT_EVAL and field_name.startswith('`') and field_name.endswith('`'):
+                    try:
+                        obj = str_eval(field_name, kwargs)
+                        used_args.add(field_name)
+                    except (SyntaxError, NameError, ValueError, TypeError) as e:
+                        logger.error("Tautulli NotificationHandler :: Failed to evaluate notification text %s: %s.",
+                                     field_name, e)
+                        obj = field_name
+                else:
+                    # given the field_name, find the object it references
+                    #  and the argument it came from
+                    obj, arg_used = self.get_field(field_name, args, kwargs)
+                    used_args.add(arg_used)
 
                 # do any conversion on the resulting object
                 obj = self.convert_field(obj, conversion)

@@ -86,7 +86,7 @@
             </div>
             <div class="collapse navbar-collapse navbar-right" id="navbar-collapse-1">
                 <ul class="nav navbar-nav">
-                    <li class="hidden-sm hidden-xs">
+                    <li>
                         <form action="search" method="post" class="form" id="search_form">
                             <div class="input-group">
                                 <span class="input-textbox">
@@ -137,10 +137,15 @@
                         <a href="#" class="dropdown-toggle" aria-haspopup="true" data-toggle="dropdown" data-hover="dropdown" data-href="${href}"><i class="fa fa-lg fa-cogs"></i> <span class="caret"></span></a>
                         <ul class="dropdown-menu" id="settings-dropdown-menu">
                             % if _session['user_group'] == 'admin':
-                            <li role="separator" class="divider"></li>
                             <li><a href="settings"><i class="fa fa-fw fa-cogs"></i> Settings</a></li>
-                            <li><a href="logs"><i class="fa fa-fw fa-list-alt"></i> View Logs</a></li>
                             <li role="separator" class="divider"></li>
+                            <li><a href="logs"><i class="fa fa-fw fa-list-alt"></i> View Logs</a></li>
+                            <li><a href="${anon_url('https://github.com/%s/%s/wiki/Frequently-Asked-Questions' % (plexpy.CONFIG.GIT_USER, plexpy.CONFIG.GIT_REPO))}" target="_blank" rel="noreferrer"><i class="fa fa-fw fa-question-circle"></i> FAQ</a></li>
+                            <li><a href="support"><i class="fa fa-fw fa-comment"></i> Support</a></li>
+                            <li role="separator" class="divider"></li>
+                            % if plexpy.CONFIG.CHECK_GITHUB:
+                            <li><a href="#" id="nav-update"><i class="fa fa-fw fa-arrow-alt-circle-up"></i> Check for Updates</a></li>
+                            % endif
                             <li><a href="#" id="nav-restart"><i class="fa fa-fw fa-refresh"></i> Restart</a></li>
                             <li><a href="#" id="nav-shutdown"><i class="fa fa-fw fa-power-off"></i> Shutdown</a></li>
                             % else:
@@ -304,6 +309,7 @@ ${next.modalIncludes()}
 <script src="${http_root}js/ipaddr.min.js"></script>
 <script src="${http_root}js/selectize.min.js"></script>
 <script src="${http_root}js/jquery.tripleclick.min.js"></script>
+<script src="${http_root}js/blurhash_pure_js_port.min.js"></script>
 <script src="${http_root}js/script.js${cache_param}"></script>
 <script src="${http_root}js/ajaxNotifications.js"></script>
 <script>
@@ -387,8 +393,22 @@ ${next.modalIncludes()}
         }
     });
 
+    function displaySearch() {
+        if ($(this).width() < 768) {
+            $('#search_button').removeClass('btn-inactive');
+            $('#query').css({ right: 0, width: '100%' })
+        } else if ($('#query').val().trim() == '') {
+            $('#search_button').addClass('btn-inactive');
+            $('#query').css({ right: '-200px', width: '0' })
+        }
+    }
+    displaySearch();
+    $(window).resize(function() {
+        displaySearch();
+    });
+
     $('#search_form').submit(function (e) {
-        if ($('#query').hasClass('active') && $('#query').val().trim() != '') {
+        if ($('#query').val().trim() != '') {
             $.ajax({
                 type: 'post',
                 url: 'search',
@@ -396,14 +416,16 @@ ${next.modalIncludes()}
             })
         } else {
             e.preventDefault();
-            $('#search_button').removeClass('btn-inactive');
-            $('#query').clearQueue().val('').animate({ right: '0', width: '200px' }).addClass('active').focus();
+            if ($(window).width() >= 768) {
+                $('#search_button').removeClass('btn-inactive');
+                $('#query').clearQueue().val('').animate({ right: '0', width: '200px' }).addClass('active').focus();
+            }
         }
     })
     $('#query').on('blur', function (e) {
-        if ($(this).val().trim() == '') {
+        if ($(this).val().trim() == '' && $(window).width() >= 768) {
             $(this).delay(200).animate({ right: '-200px', width: '0' }, function () {
-                $('#search_button').addClass('btn-inactive');
+                displaySearch();
             }).removeClass('active');
         }
     });
