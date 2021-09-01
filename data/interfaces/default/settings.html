@@ -56,7 +56,7 @@
                 <li role="presentation"><a id="nav-tabs-newsletter_agents" href="#tabs-newsletter_agents" aria-controls="tabs-newsletter_agents" role="tab" data-toggle="tab">Newsletter Agents</a></li>
                 <li role="presentation"><a id="nav-tabs-3rd_party_apis" href="#tabs-3rd_party_apis" aria-controls="tabs-3rd_party_apis" role="tab" data-toggle="tab">3rd Party APIs</a></li>
                 <li role="presentation"><a id="nav-tabs-import_backups" href="#tabs-import_backups" aria-controls="tabs-import_backups" role="tab" data-toggle="tab">Import & Backups</a></li>
-                <li role="presentation"><a id="nav-tabs-android_app" href="#tabs-android_app" aria-controls="tabs-android_app" role="tab" data-toggle="tab">Tautulli Remote Android App <sup><small>beta</small></sup></a></li>
+                <li role="presentation"><a id="nav-tabs-remote_app" href="#tabs-remote_app" aria-controls="tabs-remote_app" role="tab" data-toggle="tab">Tautulli Remote App</a></li>
             </ul>
         </div>
         <div class="col-md-9">
@@ -657,13 +657,6 @@
                             <p class="help-block">Password for web server authentication. Leave empty to disable.</p>
                         </div>
 
-                        <div class="checkbox advanced-setting">
-                            <label>
-                                <input type="checkbox" class="auth-settings" name="http_basic_auth" id="http_basic_auth" value="1" ${config['http_basic_auth']} data-parsley-trigger="change"> Use Basic Authentication
-                            </label>
-                            <p class="help-block">Use basic HTTP authentication instead of the HTML login form.</p>
-                        </div>
-
                         <input type="checkbox" name="auth_changed" id="auth_changed" value="1" style="display: none;">
 
                         <div class="checkbox">
@@ -689,7 +682,7 @@
                             <label>
                                 <input type="checkbox" id="api_enabled" name="api_enabled" value="1" ${config['api_enabled']}> Enable API
                             </label>
-                            <p class="help-block">Allow remote applications to interface with Tautulli.</p>
+                            <p class="help-block">Allow external applications to interface with Tautulli.</p>
                         </div>
                         <div id="apioptions">
                             <div class="form-group">
@@ -1491,9 +1484,6 @@
                                             <button class="btn btn-form" type="button" id="log_dir_browse" data-toggle="browse" data-filter=".folderonly" data-target="#log_dir" ${docker_setting}>Browse</button>
                                         </span>
                                     </div>
-                                    <div class="btn-group">
-                                        <button class="btn btn-form" type="button" id="clear_logs">Clear Logs</button>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1552,20 +1542,36 @@
 
                     </div>
 
-                    <div role="tabpanel" class="tab-pane" id="tabs-android_app">
+                    <div role="tabpanel" class="tab-pane" id="tabs-remote_app">
 
                         <div class="padded-header">
-                            <h3>Tautulli Remote Android App</h3>
+                            <h3>Tautulli Remote App</h3>
                         </div>
 
                         <div class="form-group">
                             <label>Get the App</label>
                             <p class="help-block">
-                                Get the <a href="${anon_url('https://play.google.com/store/apps/details?id=com.tautulli.tautulli_remote')}" target="_blank" rel="noreferrer">Tautulli Remote</a> app on Google Play<sup><small>TM</small></sup> to access Tautulli from your Android device!<br />
-                                <span class="google-play-badge">
-                                    <a href="${anon_url('https://play.google.com/store/apps/details?id=com.tautulli.tautulli_remote')}" target="_blank" rel="noreferrer"><img alt="Get it on Google Play" src="images/en-play-badge.png" /></a>
+                                Get the Tautulli Remote app on
+                                <a href="${anon_url('https://play.google.com/store/apps/details?id=com.tautulli.tautulli_remote')}" target="_blank" rel="noreferrer">Google Play</a>
+                                or the
+                                <a href="${anon_url('https://apps.apple.com/us/app/tautulli-remote/id1570909086')}" target="_blank" rel="noreferrer">App Store</a>
+                                to access Tautulli from your mobile device.
+                                <br />
+                            </p>
+                            <p class="help-block">
+                                <span class="app-badge">
+                                    <a href="${anon_url('https://play.google.com/store/apps/details?id=com.tautulli.tautulli_remote')}" target="_blank" rel="noreferrer"><img alt="Get it on Google Play" src="images/google-play-badge.svg" /></a>
+                                </span>
+                                <span class="app-badge">
+                                    <a href="${anon_url('https://apps.apple.com/us/app/tautulli-remote/id1570909086')}" target="_blank" rel="noreferrer"><img alt="Download on the App Store" src="images/app-store-badge.svg" /></a>
+                                </span>
+                                <span class="app-badge">
+                                    <small>Google Play and the Google Play logo are trademarks of Google LLC.</small>
+                                    <br>
+                                    <small>Apple and the Apple Logo are trademarks of Apple Inc.</small>
                                 </span>
                             </p>
+                            <br style="clear: both">
                         </div>
                         <div class="form-group">
                             <label>Registered Devices</label>
@@ -2033,19 +2039,19 @@ Rating: {rating}/10   --> Rating: /10
         <div class="modal-content">
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal" aria-hidden="true"><i class="fa fa-remove"></i></button>
-                <h4 class="modal-title">Register Tautulli Android App</h4>
+                <h4 class="modal-title">Register Tautulli Remote App</h4>
             </div>
             <div class="modal-body">
                 <label>Instructions</label>
                 <p class="help-block">
-                    Scan the QR code below with the Tautulli Android app to automatically register it with the server (make sure the Tautulli Address below is correct)
+                    Scan the QR code below with the Tautulli Remote app to automatically register it with the server (make sure the Tautulli Address below is correct)
                     or manually enter the connection info and device token into the app settings. This window will automatically close once device registration is successful.
                 </p>
                 <p class="help-block">
                     Note: OneSignal.com must not be blocked (e.g. in Pi-hole) for device registration.
                 </p>
                 <label>QR Code</label>
-                <pre id="api_qr_code" style="text-align: center"></pre>
+                <div id="api_qr_code"></div>
                 <label>Tautulli Address</label>
                 <input type="text" class="form-control" id="api_qr_address">
                 <p class="help-block" id="api_qr_localhost" style="display: none;">
@@ -2108,7 +2114,7 @@ Rating: {rating}/10   --> Rating: /10
 <script src="${http_root}js/parsley.min.js"></script>
 <script src="${http_root}js/Sortable.min.js"></script>
 <script src="${http_root}js/jquery.inputaffix.min.js"></script>
-<script src="${http_root}js/jquery.qrcode.min.js"></script>
+<script src="${http_root}js/kjua.min.js"></script>
 <script>
     function getConfigurationTable() {
         $.ajax({
@@ -2432,12 +2438,6 @@ $(document).ready(function() {
     $("#clear_exports").click(function () {
         var msg = 'Are you sure you want to clear the Tautulli metadata exports?';
         var url = 'delete_export?delete_all=true';
-        confirmAjaxCall(url, msg);
-    });
-
-    $("#clear_logs").click(function () {
-        var msg = 'Are you sure you want to clear the Tautulli logs?';
-        var url = 'delete_logs';
         confirmAjaxCall(url, msg);
     });
 
@@ -2867,10 +2867,7 @@ $(document).ready(function() {
     });
 
     function allowPlexAdminCheck () {
-        if ($("#http_basic_auth").is(":checked")) {
-            $("#http_plex_admin").attr("checked", false).attr("disabled", true);
-            $("#allowPlexCheck").html("Plex admin login cannot be enabled with basic authentication.");
-        } else if ($('#http_username').val() == '' || $('#http_password').val() == '') {
+        if ($('#http_username').val() == '' || $('#http_password').val() == '') {
             $("#http_plex_admin").attr("checked", false).attr("disabled", true);
             $("#allowPlexCheck").html("You must set an admin username and password above to allow Plex admin login.");
         } else {
@@ -2880,15 +2877,12 @@ $(document).ready(function() {
     }
     allowPlexAdminCheck();
 
-    $('#http_username, #http_password, #http_basic_auth').change(function () {
+    $('#http_username, #http_password').change(function () {
         allowPlexAdminCheck();
     });
 
     function allowGuestAccessCheck () {
-        if ($("#http_basic_auth").is(":checked")) {
-            $("#allow_guest_access").attr("checked", false).attr("disabled", true);
-            $("#allowGuestCheck").html("Guest access cannot be enabled with basic authentication.");
-        } else if ($('#http_username').val() == '' || $('#http_password').val() == '') {
+        if ($('#http_username').val() == '' || $('#http_password').val() == '') {
             $("#allow_guest_access").attr("checked", false).attr("disabled", true);
             $("#allowGuestCheck").html("You must set an admin username and password above to allow guest access.");
         } else {
@@ -2899,7 +2893,7 @@ $(document).ready(function() {
     }
     allowGuestAccessCheck();
 
-    $('#http_username, #http_password, #http_basic_auth').change(function () {
+    $('#http_username, #http_password').change(function () {
         allowGuestAccessCheck();
     });
 

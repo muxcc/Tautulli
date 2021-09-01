@@ -2175,6 +2175,10 @@ span.settings-warning {
     padding-left: 10px;
     margin-left: -10px;
 }
+#newsletter_agent_options.hidden-settings {
+    padding-left: 15px;
+    margin-left: 0;
+}
 .advanced-setting {
     display: none;
 }
@@ -3884,16 +3888,15 @@ a:hover .overlay-refresh-image:hover {
 #changelog-modal ul {
     padding-left: 20px;
 }
-.google-play-badge {
-    display:inline-block;
-    height:45px;
-    margin-top: 10px;
+.app-badge {
+    float: left;
+    display: inline-block;
+    height: 46px;
+    margin-right: 10px;
+    margin-bottom: 5px;
 }
-.google-play-badge img {
-    border: 1px solid #3B3B3B;
-    border-radius: 6px;
-    box-sizing: border-box;
-    height: 45px;
+.app-badge img {
+    height: 46px;
     vertical-align: middle;
 }
 
@@ -4504,4 +4507,15 @@ a.donate-with-crypto::after {
     opacity: 1;
     top: 0;
     left: 0;
+}
+
+#api_qr_code {
+    width: 100%;
+    padding: 0;
+    margin: 0 0 10px;
+    line-height: 1;
+    text-align: center;
+    background-color: #eee;
+    border: 1px solid #ccc;
+    border-radius: 4px;
 }

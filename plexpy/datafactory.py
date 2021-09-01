@@ -71,16 +71,15 @@ class DataFactory(object):
 
             for c_where in custom_where:
                 if 'user_id' in c_where[0]:
-                    # This currently only works if c_where[1] is not a list or tuple
-                    if str(c_where[1]) == session_user_id:
-                        added = True
-                        break
-                    else:
-                        c_where[1] = (c_where[1], session_user_id)
-                        added = True
+                    if isinstance(c_where[1], list) and session_user_id not in c_where[1]:
+                        c_where[1].append(session_user_id)
+                    elif isinstance(c_where[1], str) and c_where[1] != session_user_id:
+                        c_where[1] = [c_where[1], session_user_id]
+                    added = True
+                    break
 
             if not added:
-                custom_where.append(['session_history.user_id', session.get_session_user_id()])
+                custom_where.append(['session_history.user_id', [session.get_session_user_id()]])
 
         group_by = ['session_history.reference_id'] if grouping else ['session_history.id']
 
@@ -660,7 +659,8 @@ class DataFactory(object):
                             '   FROM session_history ' \
                             '   WHERE session_history.stopped >= %s ' \
                             '   GROUP BY %s) AS sh ' \
-                            'LEFT OUTER JOIN library_sections AS ls ON sh.section_id = ls.section_id ' \
+                            'LEFT OUTER JOIN (SELECT * FROM library_sections WHERE deleted_section = 0) ' \
+                            '   AS ls ON sh.section_id = ls.section_id ' \
                             'GROUP BY sh.section_id ' \
                             'ORDER BY %s DESC, sh.started DESC ' \
                             'LIMIT %s OFFSET %s ' % (timestamp, group_by, sort_type, stats_count, stats_start)

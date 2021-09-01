@@ -1,5 +1,58 @@
 # Changelog
 
+## v2.7.6 (2021-08-31)
+
+* Notifications:
+  * Fix: Unable to parse colons (:) and exclamation marks (!) in notification text eval strings.
+* Exporter:
+  * Fix: Unable to export playlists and collections from a library.
+  * New: Added new episode export fields.
+* Mobile App:
+  * Fix: Unable to scan QR code with dark mode enabled.
+  * New: Tautulli Remote App is out of beta for iOS and can be downloaded in the App Store.
+* Other:
+  * New: Update PlexAPI to 4.6.3.
+  * New: Added popup alert message for Windows and macOS when Tautulli fails to start.
+
+
+## v2.7.5 (2021-07-15)
+
+* History:
+  * Fix: Guest users were unable to view history.
+  * Fix: Most Active Library statistics was counting deleted libraries.
+* Newsletters:
+  * Fix: Incorrect padding on the newsletter configuration modal.
+* Mobile App:
+  * New: Tautulli Remote App is out of beta on Android. The iOS app is available for beta testing on TestFlight.
+* API:
+  * New: Added mobile device platform and version to device registration.
+* Other:
+  * Fix: Unable to remove authentication.
+  * Change: Improve API key and device token security on Python 3.
+  * Remove: Basic Authentication setting.
+
+
+## v2.7.4 (2021-06-19)
+
+* Activity:
+  * Fix: Incorrect quality profile shown on the activity card.
+* Notifications:
+  * New: Added ability to evaluate Python expressions in notification parameters.
+  * New: Added tilde (~) to represent blank notification condition values.
+* Exporter:
+  * Fix: Blank fields missing from csv and json exports. 
+  * New: Added some new exporter fields.
+* Graphs:
+  * Fix: Play counts and durations not matching the homepage statistics.
+* UI:
+  * New: Show search bar in the collapsed menu on the mobile layout. (#1446)
+  * Change: Do not show seconds for total played duration on Users and Libraries tables.
+* Other:
+  * Fix: Check the Tautulli data folder is writable on startup. (#1441)
+  * New: Update PlexAPI to 4.6.1.
+  * Change: Always hash HTTP password in config file.
+
+
 ## v2.7.3 (2021-05-22)
 
 * Activity:

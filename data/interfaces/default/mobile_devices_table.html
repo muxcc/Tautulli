@@ -16,7 +16,14 @@ DOCUMENTATION :: END
             % if device['official'] == -1:
                 <span class="toggle-left official-tooltip" data-toggle="tooltip" data-placement="top" title="OneSignal Validation Failed"><i class="fa fa-lg fa-fw fa-exclamation-triangle"></i></span>
             % elif device['official'] > 0:
-                <span class="toggle-left"><i class="fa fa-lg fa-fw fa-mobile"></i></span>
+                <%
+                    icon = 'mobile'
+                    if device['platform'] == 'android':
+                        icon = 'android'
+                    elif device['platform'] == 'ios':
+                        icon = 'apple'
+                %>
+                <span class="toggle-left"><i class="fa fa-lg fa-fw fa-${icon}"></i></span>
             % else:
                 <span class="toggle-left official-tooltip" data-toggle="tooltip" data-placement="top" title="Unofficial or Unknown App"><i class="fa fa-lg fa-fw fa-exclamation-triangle"></i></span>
             % endif
@@ -81,6 +88,17 @@ DOCUMENTATION :: END
         $('#api_qr_https').toggle((protocol === 'http:'));
     }
 
+    function generateQRCode(url) {
+        $('#api_qr_code').empty().kjua({
+            text: url + '|' + $('#api_qr_token').val(),
+            render: 'canvas',
+            ecLevel: 'H',
+            size: 256,
+            fill: '#000',
+            back: '#eee'
+        });
+    }
+
     var verifiedDevice = false;
     $('#register-mobile-device').click(function () {
         verifiedDevice = false;
@@ -91,9 +109,7 @@ DOCUMENTATION :: END
             $.get('generate_api_key', { device: true }).then(function (token) {
                 $('#api_qr_address').val(url);
                 $('#api_qr_token').val(token);
-                $('#api_qr_code').empty().qrcode({
-                    text: url + '|' + token
-                });
+                generateQRCode(url);
 
                 (function poll() {
                     setTimeout(function () {
@@ -128,10 +144,7 @@ DOCUMENTATION :: END
         this.value = $.trim(this.value);
         var url = $(this).val();
         checkQRAddress(url);
-
-        $('#api_qr_code').empty().qrcode({
-            text: url + '|' + $('#api_qr_token').val()
-        });
+        generateQRCode(url);
     });
 
     $('#api-qr-modal').on('hide.bs.modal', function () {

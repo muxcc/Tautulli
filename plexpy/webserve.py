@@ -43,6 +43,9 @@ import mako.exceptions
 
 import websocket
 
+if sys.version_info >= (3, 6):
+    import secrets
+
 import plexpy
 if plexpy.PYTHON2:
     import activity_pinger
@@ -3132,7 +3135,6 @@ class WebInterface(object):
         config = {
             "allow_guest_access": checked(plexpy.CONFIG.ALLOW_GUEST_ACCESS),
             "history_table_activity": checked(plexpy.CONFIG.HISTORY_TABLE_ACTIVITY),
-            "http_basic_auth": checked(plexpy.CONFIG.HTTP_BASIC_AUTH),
             "http_host": plexpy.CONFIG.HTTP_HOST,
             "http_username": plexpy.CONFIG.HTTP_USERNAME,
             "http_port": plexpy.CONFIG.HTTP_PORT,
@@ -3270,7 +3272,7 @@ class WebInterface(object):
             "notify_new_device_initial_only",
             "notify_server_update_repeat", "notify_plexpy_update_repeat",
             "monitor_pms_updates", "get_file_sizes", "log_blacklist",
-            "allow_guest_access", "cache_images", "http_proxy", "http_basic_auth", "notify_concurrent_by_ip",
+            "allow_guest_access", "cache_images", "http_proxy", "notify_concurrent_by_ip",
             "history_table_activity", "plexpy_auto_update",
             "themoviedb_lookup", "tvmaze_lookup", "musicbrainz_lookup", "http_plex_admin",
             "newsletter_self_hosted", "newsletter_inline_styles", "sys_tray_icon"
@@ -3283,12 +3285,13 @@ class WebInterface(object):
                 kwargs[checked_config] = 1
 
         # If http password exists in config, do not overwrite when blank value received
-        if kwargs.get('http_password') != '    ':
-            kwargs['http_password'] = make_hash(kwargs['http_password'])
+        if kwargs.get('http_password') == '    ':
+            kwargs['http_password'] = plexpy.CONFIG.HTTP_PASSWORD
+        else:
+            if kwargs['http_password'] != '':
+                kwargs['http_password'] = make_hash(kwargs['http_password'])
             # Flag to refresh JWT uuid to log out clients
             kwargs['jwt_update_secret'] = True and not first_run
-        else:
-            kwargs['http_password'] = plexpy.CONFIG.HTTP_PASSWORD
 
         for plain_config, use_config in [(x[4:], x) for x in kwargs if x.startswith('use_')]:
             # the use prefix is fairly nice in the html, but does not match the actual config
@@ -4251,7 +4254,10 @@ class WebInterface(object):
     def generate_api_key(self, device=None, **kwargs):
         apikey = ''
         while not apikey or apikey == plexpy.CONFIG.API_KEY or mobile_app.get_mobile_device_by_token(device_token=apikey):
-            apikey = plexpy.generate_uuid()
+            if sys.version_info >= (3, 6):
+                apikey = secrets.token_urlsafe(24)
+            else:
+                apikey = plexpy.generate_uuid()
 
         logger.info("New API key generated.")
         logger._BLACKLIST_WORDS.add(apikey)
