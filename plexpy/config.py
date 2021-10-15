@@ -50,6 +50,7 @@ FILENAME = "config.ini"
 _CONFIG_DEFINITIONS = {
     'ALLOW_GUEST_ACCESS': (int, 'General', 0),
     'DATE_FORMAT': (str, 'General', 'YYYY-MM-DD'),
+    'PMS_CLIENT_ID': (str, 'PMS', ''),
     'PMS_IDENTIFIER': (str, 'PMS', ''),
     'PMS_IP': (str, 'PMS', '127.0.0.1'),
     'PMS_IS_CLOUD': (int, 'PMS', 0),
@@ -87,6 +88,7 @@ _CONFIG_DEFINITIONS = {
     'CACHE_DIR': (str, 'General', ''),
     'CACHE_IMAGES': (int, 'General', 1),
     'CACHE_SIZEMB': (int, 'Advanced', 32),
+    'CHECK_DOCKER_MOUNT': (int, 'Advanced', 1),
     'CHECK_GITHUB': (int, 'General', 1),
     'CHECK_GITHUB_INTERVAL': (int, 'General', 360),
     'CHECK_GITHUB_ON_STARTUP': (int, 'General', 1),

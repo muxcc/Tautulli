@@ -21,6 +21,16 @@
 
 <%def name="body()">
 <div class="container">
+    % if plexpy.CONFIG.CHECK_DOCKER_MOUNT and plexpy.DOCKER and not plexpy.DOCKER_MOUNT:
+    <div class="row">
+        <div class="col-md-12">
+            <div class="alert alert-danger docker-mount" role="alert">
+                The <span class="inline-pre">/config</span> volume mount was not configured properly for the Docker container.
+                All data may be cleared when the container is recreated or updated.
+            </div>
+        </div>
+    </div>
+    % endif
     <div class="row">
         <div class="col-md-12">
             <div class='card-back-full'>
@@ -56,7 +66,7 @@
                 <li role="presentation"><a id="nav-tabs-newsletter_agents" href="#tabs-newsletter_agents" aria-controls="tabs-newsletter_agents" role="tab" data-toggle="tab">Newsletter Agents</a></li>
                 <li role="presentation"><a id="nav-tabs-3rd_party_apis" href="#tabs-3rd_party_apis" aria-controls="tabs-3rd_party_apis" role="tab" data-toggle="tab">3rd Party APIs</a></li>
                 <li role="presentation"><a id="nav-tabs-import_backups" href="#tabs-import_backups" aria-controls="tabs-import_backups" role="tab" data-toggle="tab">Import & Backups</a></li>
-                <li role="presentation"><a id="nav-tabs-remote_app" href="#tabs-remote_app" aria-controls="tabs-remote_app" role="tab" data-toggle="tab">Tautulli Remote App</a></li>
+                <li role="presentation"><a id="nav-tabs-remote_app" href="#tabs-remote_app" aria-controls="tabs-remote_app" role="tab" data-toggle="tab">Tautulli Remote App <span class="pull-right"><i class="fa fa-fw fa-android"></i><i class="fa fa-fw fa-apple"></i></span></a></li>
             </ul>
         </div>
         <div class="col-md-9">
@@ -956,7 +966,7 @@
                             </div>
                             <p class="help-block">Token for Plex.tv authentication.</p>
                         </div>
-                        <input type="hidden" id="pms_uuid" name="pms_uuid" value="${config['pms_uuid']}">
+                        <input type="hidden" id="pms_client_id" name="pms_client_id" value="${config['pms_client_id']}">
 
                         <p><input type="button" class="btn btn-bright save-button" value="Save" data-success="Changes saved successfully"></p>
 
@@ -2736,7 +2746,7 @@ $(document).ready(function() {
     }
 
     $('#sign-in-plex').click(function() {
-        PlexOAuth(OAuthSuccessCallback, OAuthErrorCallback, OAuthPreFunction);
+        PlexOAuth(OAuthSuccessCallback, OAuthErrorCallback, OAuthPreFunction, $('#pms_client_id').val(uuidv4()).val());
     });
 
     // Load database import modal

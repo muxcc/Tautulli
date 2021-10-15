@@ -104,6 +104,7 @@ CREATEPID = False
 PIDFILE = None
 NOFORK = False
 DOCKER = False
+DOCKER_MOUNT = False
 SNAP = False
 SNAP_MIGRATE = False
 FROZEN = False
@@ -240,6 +241,7 @@ def initialize(config_file):
         logger.info("Python {}".format(
             sys.version.replace('\n', '')
         ))
+
         logger.info("Program Dir: {}".format(
             PROG_DIR
         ))
@@ -249,6 +251,12 @@ def initialize(config_file):
         logger.info("Database File: {}".format(
             DB_FILE
         ))
+
+        if DOCKER and not DOCKER_MOUNT:
+            logger.warn(
+                "Docker /config volume not mounted. Using a Docker volume instead. "
+                "All data may be cleared when the container is recreated or updated."
+            )
 
         CONFIG.BACKUP_DIR, _ = check_folder_writable(
             CONFIG.BACKUP_DIR, os.path.join(DATA_DIR, 'backups'), 'backups')
