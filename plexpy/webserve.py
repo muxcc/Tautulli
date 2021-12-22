@@ -24,6 +24,7 @@ from backports import csv
 from io import open, BytesIO
 import base64
 import json
+import ssl as _ssl
 import linecache
 import os
 import shutil
@@ -41,6 +42,7 @@ from mako.lookup import TemplateLookup
 import mako.template
 import mako.exceptions
 
+import certifi
 import websocket
 
 if sys.version_info >= (3, 6):
@@ -457,7 +459,6 @@ class WebInterface(object):
             return {'result': 'success', 'message': 'Recently added flushed.'}
         else:
             return {'result': 'error', 'message': 'Flush recently added failed.'}
-
 
     ##### Libraries #####
 
@@ -1883,7 +1884,9 @@ class WebInterface(object):
                 rating_key (int):               4348
                 parent_rating_key (int):        544
                 grandparent_rating_key (int):   351
-                start_date (str):               "YYYY-MM-DD"
+                start_date (str):               History for the exact date, "YYYY-MM-DD"
+                before (str):                   History before and including the date, "YYYY-MM-DD"
+                after (str):                    History after and including the date, "YYYY-MM-DD"
                 section_id (int):               2
                 media_type (str):               "movie", "episode", "track", "live"
                 transcode_decision (str):       "direct play", "copy", "transcode",
@@ -1994,6 +1997,14 @@ class WebInterface(object):
             start_date = helpers.split_strip(kwargs.get('start_date', ''))
             if start_date:
                 custom_where.append(['strftime("%Y-%m-%d", datetime(started, "unixepoch", "localtime"))', start_date])
+        if 'before' in kwargs:
+            before = helpers.split_strip(kwargs.get('before', ''))
+            if before:
+                custom_where.append(['strftime("%Y-%m-%d", datetime(started, "unixepoch", "localtime")) <', before])
+        if 'after' in kwargs:
+            after = helpers.split_strip(kwargs.get('after', ''))
+            if after:
+                custom_where.append(['strftime("%Y-%m-%d", datetime(started, "unixepoch", "localtime")) >', after])
         if 'reference_id' in kwargs:
             reference_id = helpers.split_strip(kwargs.get('reference_id', ''))
             if reference_id:
@@ -2005,16 +2016,7 @@ class WebInterface(object):
         if 'media_type' in kwargs:
             media_type = helpers.split_strip(kwargs.get('media_type', ''))
             if media_type and 'all' not in media_type:
-                if 'live' in media_type:
-                    media_type.remove('live')
-                    if len(media_type):
-                        custom_where.append(['session_history_metadata.live OR', '1'])
-                    else:
-                        custom_where.append(['session_history_metadata.live', '1'])
-                else:
-                    custom_where.append(['session_history_metadata.live', '0'])
-                if media_type:
-                    custom_where.append(['session_history.media_type', media_type])
+                custom_where.append(['media_type_live', media_type])
         if 'transcode_decision' in kwargs:
             transcode_decision = helpers.split_strip(kwargs.get('transcode_decision', ''))
             if transcode_decision and 'all' not in transcode_decision:
@@ -2746,7 +2748,8 @@ class WebInterface(object):
     @cherrypy.expose
     @requireAuth(member_of("admin"))
     def logs(self, **kwargs):
-        return serve_template(templatename="logs.html", title="Log")
+        plex_log_files = log_reader.list_plex_logs()
+        return serve_template(templatename="logs.html", title="Log", plex_log_files=plex_log_files)
 
     @cherrypy.expose
     @requireAuth(member_of("admin"))
@@ -2819,7 +2822,7 @@ class WebInterface(object):
     @cherrypy.tools.json_out()
     @requireAuth(member_of("admin"))
     @addtoapi()
-    def get_plex_log(self, **kwargs):
+    def get_plex_log(self, logfile='', **kwargs):
         """ Get the PMS logs.
 
             ```
@@ -2828,7 +2831,8 @@ class WebInterface(object):
 
             Optional parameters:
                 window (int):           The number of tail lines to return
-                log_type (str):         "server" or "scanner"
+                logfile (int):          The name of the Plex log file,
+                                        e.g. "Plex Media Server", "Plex Media Scanner"
 
             Returns:
                 json:
@@ -2841,16 +2845,16 @@ class WebInterface(object):
                      ]
             ```
         """
+        if kwargs.get('log_type'):
+            logfile = 'Plex Media ' + kwargs['log_type'].capitalize()
+
         window = int(kwargs.get('window', plexpy.CONFIG.PMS_LOGS_LINE_CAP))
-        log_lines = []
-        log_type = kwargs.get('log_type', 'server')
 
         try:
-            log_lines = {'data': log_reader.get_log_tail(window=window, parsed=True, log_type=log_type)}
+            return {'data': log_reader.get_log_tail(window=window, parsed=True, log_file=logfile)}
         except:
-            logger.warn("Unable to retrieve Plex Logs.")
-
-        return log_lines
+            logger.warn("Unable to retrieve Plex log file '%'." % logfile)
+            return []
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
@@ -3153,6 +3157,7 @@ class WebInterface(object):
             "https_ip": plexpy.CONFIG.HTTPS_IP,
             "http_base_url": plexpy.CONFIG.HTTP_BASE_URL,
             "anon_redirect": plexpy.CONFIG.ANON_REDIRECT,
+            "anon_redirect_dynamic": checked(plexpy.CONFIG.ANON_REDIRECT_DYNAMIC),
             "api_enabled": checked(plexpy.CONFIG.API_ENABLED),
             "api_key": plexpy.CONFIG.API_KEY,
             "update_db_interval": plexpy.CONFIG.UPDATE_DB_INTERVAL,
@@ -3275,7 +3280,8 @@ class WebInterface(object):
             "allow_guest_access", "cache_images", "http_proxy", "notify_concurrent_by_ip",
             "history_table_activity", "plexpy_auto_update",
             "themoviedb_lookup", "tvmaze_lookup", "musicbrainz_lookup", "http_plex_admin",
-            "newsletter_self_hosted", "newsletter_inline_styles", "sys_tray_icon"
+            "newsletter_self_hosted", "newsletter_inline_styles", "sys_tray_icon",
+            "anon_redirect_dynamic"
         ]
         for checked_config in checked_configs:
             if checked_config not in kwargs:
@@ -4129,6 +4135,8 @@ class WebInterface(object):
                     {'identifier': '08u2phnlkdshf890bhdlksghnljsahgleikjfg9t'}
             ```
         """
+        ssl = helpers.bool_true(ssl)
+
         # Attempt to get the pms_identifier from plex.tv if the server is published
         # Works for all PMS SSL settings
         if not identifier and hostname and port:
@@ -4144,7 +4152,7 @@ class WebInterface(object):
             # Fallback to checking /identity endpoint if the server is unpublished
             # Cannot set SSL settings on the PMS if unpublished so 'http' is okay
             if not identifier:
-                scheme = 'https' if helpers.cast_to_int(ssl) else 'http'
+                scheme = 'https' if ssl else 'http'
                 url = '{scheme}://{hostname}:{port}'.format(scheme=scheme, hostname=hostname, port=port)
                 uri = '/identity'
 
@@ -4174,10 +4182,20 @@ class WebInterface(object):
                     # Quick test websocket connection
                     ws_url = result['url'].replace('http', 'ws', 1) + '/:/websockets/notifications'
                     header = ['X-Plex-Token: %s' % plexpy.CONFIG.PMS_TOKEN]
+                    # Enforce SSL as needed
+                    if ssl:
+                        secure = 'secure '
+                        if plexpy.CONFIG.VERIFY_SSL_CERT:
+                            sslopt = {'ca_certs': certifi.where()}
+                        else:
+                            sslopt = {'cert_reqs': _ssl.CERT_NONE}
+                    else:
+                        secure = ''
+                        sslopt = None
 
-                    logger.debug("Testing websocket connection...")
+                    logger.debug("Testing %swebsocket connection..." % secure)
                     try:
-                        test_ws = websocket.create_connection(ws_url, header=header)
+                        test_ws = websocket.create_connection(ws_url, header=header, sslopt=sslopt)
                         test_ws.close()
                         logger.debug("Websocket connection test successful.")
                         result['ws'] = True
@@ -4496,6 +4514,136 @@ class WebInterface(object):
             return serve_template(templatename="info_collection_list.html", data=None, title=title)
 
     @cherrypy.expose
+    @requireAuth()
+    def item_watch_time_stats(self, rating_key=None, media_type=None, **kwargs):
+        if rating_key:
+            item_data = datafactory.DataFactory()
+            result = item_data.get_watch_time_stats(rating_key=rating_key, media_type=media_type)
+        else:
+            result = None
+
+        if result:
+            return serve_template(templatename="user_watch_time_stats.html", data=result, title="Watch Stats")
+        else:
+            logger.warn("Unable to retrieve data for item_watch_time_stats.")
+            return serve_template(templatename="user_watch_time_stats.html", data=None, title="Watch Stats")
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    @requireAuth(member_of("admin"))
+    @addtoapi()
+    def get_item_watch_time_stats(self, rating_key=None, media_type=None, **kwargs):
+        """  Get the watch time stats for the media item.
+
+            ```
+            Required parameters:
+                rating_key (str):       Rating key of the item
+                media_type (str):       Media type of the item
+
+            Optional parameters:
+                None
+
+            Returns:
+                json:
+                    [
+                        {
+                            "query_days": 1,
+                            "total_time": 0,
+                            "total_plays": 0
+                        },
+                        {
+                            "query_days": 7,
+                            "total_time": 0,
+                            "total_plays": 0
+                        },
+                        {
+                            "query_days": 30,
+                            "total_time": 0,
+                            "total_plays": 0
+                        },
+                        {
+                            "query_days": 0,
+                            "total_time": 57776,
+                            "total_plays": 13
+                        }
+                    ]
+            ```
+        """
+        if rating_key:
+            item_data = datafactory.DataFactory()
+            stats = item_data.get_watch_time_stats(rating_key=rating_key, media_type=media_type)
+        else:
+            stats = None
+
+        if stats:
+            return stats
+        else:
+            logger.warn("Unable to retrieve data for get_item_watch_time_stats.")
+            return stats
+
+    @cherrypy.expose
+    @requireAuth()
+    def item_user_stats(self, rating_key=None, media_type=None, **kwargs):
+        if rating_key:
+            item_data = datafactory.DataFactory()
+            result = item_data.get_user_stats(rating_key=rating_key, media_type=media_type)
+        else:
+            result = None
+
+        if result:
+            return serve_template(templatename="library_user_stats.html", data=result, title="Player Stats")
+        else:
+            logger.warn("Unable to retrieve data for item_user_stats.")
+            return serve_template(templatename="library_user_stats.html", data=None, title="Player Stats")
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    @requireAuth(member_of("admin"))
+    @addtoapi()
+    def get_item_user_stats(self, rating_key=None, media_type=None, **kwargs):
+        """  Get the user stats for the media item.
+
+            ```
+            Required parameters:
+                rating_key (str):       Rating key of the item
+                media_type (str):       Media type of the item
+
+            Optional parameters:
+                None
+
+            Returns:
+                json:
+                    [
+                        {
+                            "friendly_name": "Jon Snow",
+                            "user_id": 1601089,
+                            "user_thumb": "",
+                            "username": "jsnow@thewinteriscoming.com",
+                            "total_plays": 6
+                        },
+                        {
+                            "friendly_name": "DanyKhaleesi69",
+                            "user_id": 8008135,
+                            "user_thumb": "",
+                            "username": "DanyKhaleesi69",
+                            "total_plays": 5
+                        }
+                    ]
+            ```
+        """
+        if rating_key:
+            item_data = datafactory.DataFactory()
+            stats = item_data.get_user_stats(rating_key=rating_key, media_type=media_type)
+        else:
+            stats = None
+
+        if stats:
+            return stats
+        else:
+            logger.warn("Unable to retrieve data for get_item_user_stats.")
+            return stats
+
+    @cherrypy.expose
     @cherrypy.tools.json_out()
     @requireAuth(member_of("admin"))
     @addtoapi("get_children_metadata")
@@ -4806,7 +4954,20 @@ class WebInterface(object):
     @requireAuth(member_of("admin"))
     @addtoapi()
     def download_log(self, logfile='', **kwargs):
-        """ Download the Tautulli log file. """
+        """ Download the Tautulli log file.
+
+            ```
+            Required parameters:
+                None
+
+            Optional parameters:
+                logfile (str):          The name of the Tautulli log file,
+                                        "tautulli", "tautulli_api", "plex_websocket"
+
+            Returns:
+                download
+            ```
+        """
         if logfile == "tautulli_api":
             filename = logger.FILENAME_API
             log = logger.logger_api
@@ -4827,26 +4988,35 @@ class WebInterface(object):
     @cherrypy.expose
     @requireAuth(member_of("admin"))
     @addtoapi()
-    def download_plex_log(self, **kwargs):
-        """ Download the Plex log file. """
-        log_type = kwargs.get('log_type', 'server')
+    def download_plex_log(self, logfile='', **kwargs):
+        """ Download the Plex log file.
 
-        log_file = ""
-        if plexpy.CONFIG.PMS_LOGS_FOLDER:
-            if log_type == "server":
-                log_file = 'Plex Media Server.log'
-                log_file_path = os.path.join(plexpy.CONFIG.PMS_LOGS_FOLDER, log_file)
-            elif log_type == "scanner":
-                log_file = 'Plex Media Scanner.log'
-                log_file_path = os.path.join(plexpy.CONFIG.PMS_LOGS_FOLDER, log_file)
-        else:
+            ```
+            Required parameters:
+                None
+
+            Optional parameters:
+                logfile (int):          The name of the Plex log file,
+                                        e.g. "Plex Media Server", "Plex Media Scanner"
+
+            Returns:
+                download
+            ```
+        """
+        if not plexpy.CONFIG.PMS_LOGS_FOLDER:
             return "Plex log folder not set in the settings."
 
+        if kwargs.get('log_type'):
+            logfile = 'Plex Media ' + kwargs['log_type'].capitalize()
+
+        log_file = (logfile or 'Plex Media Server') + '.log'
+        log_file_path = os.path.join(plexpy.CONFIG.PMS_LOGS_FOLDER, log_file)
 
         if log_file and os.path.isfile(log_file_path):
-            return serve_download(log_file_path, name=log_file)
+            log_file_name = os.path.basename(log_file_path)
+            return serve_download(log_file_path, name=log_file_name)
         else:
-            return "Plex %s log file not found." % log_type
+            return "Plex log file '%s' not found." % log_file
 
     @cherrypy.expose
     @cherrypy.tools.json_out()

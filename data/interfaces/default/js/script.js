@@ -102,7 +102,7 @@ function showMsg(msg, loader, timeout, ms, error) {
 function confirmAjaxCall(url, msg, data, loader_msg, callback) {
     $("#confirm-message").html(msg);
     $('#confirm-modal').modal();
-    $('#confirm-modal').one('click', '#confirm-button', function () {
+    $('#confirm-modal').off('click', '#confirm-button').one('click', '#confirm-button', function () {
         if (loader_msg) {
             showMsg(loader_msg, true, false);
         }
@@ -926,3 +926,7 @@ $('.modal').on('hide.bs.modal', function (e) {
         return false;
     }
 });
+
+$.fn.hasScrollBar = function() {
+    return this.get(0).scrollHeight > this.get(0).clientHeight;
+}

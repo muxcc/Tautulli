@@ -68,7 +68,7 @@ def process_queue():
     queue = plexpy.NOTIFY_QUEUE
     while True:
         params = queue.get()
-
+        
         if params is None:
             break
         elif params:
@@ -203,7 +203,7 @@ def notify_conditions(notify_action=None, stream_data=None, timeline_data=None, 
 
             if notify_action == 'on_stop':
                 evaluated = (plexpy.CONFIG.NOTIFY_CONSECUTIVE or
-                    (stream_data['media_type'] == 'movie' and progress_percent < plexpy.CONFIG.MOVIE_WATCHED_PERCENT) or
+                    (stream_data['media_type'] == 'movie' and progress_percent < plexpy.CONFIG.MOVIE_WATCHED_PERCENT) or 
                     (stream_data['media_type'] == 'episode' and progress_percent < plexpy.CONFIG.TV_WATCHED_PERCENT))
 
             elif notify_action == 'on_resume':
@@ -1057,11 +1057,11 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
             if notify_params['originally_available_at'] else '',
         'air_date': arrow.get(notify_params['originally_available_at']).format(date_format)
             if notify_params['originally_available_at'] else '',
-        'added_date': arrow.get(notify_params['added_at']).format(date_format)
+        'added_date': arrow.get(int(notify_params['added_at'])).format(date_format)
             if notify_params['added_at'] else '',
-        'updated_date': arrow.get(notify_params['updated_at']).format(date_format)
+        'updated_date': arrow.get(int(notify_params['updated_at'])).format(date_format)
             if notify_params['updated_at'] else '',
-        'last_viewed_date': arrow.get(notify_params['last_viewed_at']).format(date_format)
+        'last_viewed_date': arrow.get(int(notify_params['last_viewed_at'])).format(date_format)
             if notify_params['last_viewed_at'] else '',
         'studio': notify_params['studio'],
         'content_rating': notify_params['content_rating'],
@@ -1072,7 +1072,7 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
         'labels': ', '.join(notify_params['labels']),
         'collections': ', '.join(notify_params['collections']),
         'summary': notify_params['summary'],
-        'summary_short' : notify_params['summary'][:380]+" ...",
+        'summary_short' : notify_params['summary'][:365]+" ...",
         'tagline': notify_params['tagline'],
         'rating': rating,
         'critic_rating':  critic_rating,

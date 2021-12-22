@@ -24,6 +24,10 @@ history_table_options = {
     },
     "pagingType": "full_numbers",
     "stateSave": true,
+    "stateSaveParams": function (settings, data) {
+        data.search.search = "";
+        data.start = 0;
+    },
     "stateDuration": 0,
     "processing": false,
     "serverSide": true,
@@ -460,7 +464,7 @@ function childTableOptions(rowData) {
     history_child_options.lengthChange = false;
     history_child_options.info = false;
     history_child_options.pageLength = 10;
-    history_child_options.bStateSave = false;
+    history_child_options.saveState = false;
     history_child_options.ajax = {
         url: 'get_history',
         type: 'post',
@@ -472,7 +476,7 @@ function childTableOptions(rowData) {
             };
         }
     }
-    history_child_options.fnDrawCallback = function (settings) {
+    history_child_options.drawCallback = function (settings) {
         $('#ajaxMsg').fadeOut();
 
         // Create the tooltips.

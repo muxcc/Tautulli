@@ -1830,15 +1830,32 @@ a:hover .summary-poster-face-track .summary-poster-face-overlay span {
     max-height: 15px;
     margin: 0 5px;
 }
-.summary-content-summary {
+.summary-content-text {
     overflow: hidden;
     color: #eee;
     float: left;
     position: relative;
     clear: both;
-    height: auto;
-    max-height: 160px;
-    padding-bottom: 0px;
+    padding-bottom: 0;
+}
+.summary-content-tagline {
+    font-weight: bold;
+}
+.summary-content-summary {
+    height: 60px;
+}
+.summary-content-summary p {
+    margin-bottom: 0;
+}
+.summary-toggle {
+    display: none;
+    margin-top: 10px;
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+.summary-toggle a {
+    color: #999;
 }
 .summary-content-people-wrapper {
     margin-right: 20px;
@@ -4526,5 +4543,4 @@ a.donate-with-crypto::after {
 .docker-mount {
     margin: 20px auto 0 auto;
     position: relative;
-    z-index: 9999;
 }

@@ -71,7 +71,7 @@ DOCUMENTATION :: END
 <%inherit file="base.html"/>
 
 <%def name="headIncludes()">
-<link rel="stylesheet" href="${http_root}css/dataTables.bootstrap.css">
+<link rel="stylesheet" href="${http_root}css/dataTables.bootstrap.min.css">
 <link rel="stylesheet" href="${http_root}css/dataTables.colVis.css">
 <link rel="stylesheet" href="${http_root}css/tautulli-dataTables.css">
 </%def>
@@ -402,12 +402,15 @@ DOCUMENTATION :: END
                             </div>
                         </div>
                         % if data['tagline']:
-                        <div class="summary-content-summary">
-                            <p><strong> ${data['tagline']} </strong></p>
+                        <div class="summary-content-text summary-content-tagline">
+                            <p>${data['tagline']}</p>
                         </div>
                         % endif
-                        <div class="summary-content-summary">
-                            <p> ${data['summary'] | br, n} </p>
+                        <div class="summary-content-text summary-content-summary">
+                            <p>${data['summary'] | br, n}</p>
+                        </div>
+                        <div class="summary-content-text summary-toggle">
+                            <a href="#" class="show-more">Read more &nbsp;<i class="fa fa-chevron-down"></i></a>
                         </div>
                     </div>
                 </div>
@@ -536,6 +539,34 @@ DOCUMENTATION :: END
                     </div>
                     <div class="table-card-back">
                         <div id="children-list" class="children-list"><i class="fa fa-refresh fa-spin"></i>&nbsp; Loading playlist items...</div>
+                    </div>
+                </div>
+                % endif
+                % if data['media_type'] in ('movie', 'show', 'season', 'episode', 'artist', 'album', 'track'):
+                <div class="col-md-12">
+                    <div class="table-card-header">
+                        <div class="header-bar">
+                            <span><i class="fa fa-line-chart"></i> Global Stats</span>
+                        </div>
+                    </div>
+                    <div class="table-card-back">
+                        <div id="watch-time-stats" class="user-overview-stats-wrapper">
+                            <div class='muted'><i class="fa fa-refresh fa-spin"></i> Loading data...</div>
+                            <br>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-12">
+                    <div class="table-card-header">
+                        <div class="header-bar">
+                            <span><i class="fa fa-group"></i> User Stats</span>
+                        </div>
+                    </div>
+                    <div class="table-card-back">
+                        <div id="user-stats" class="user-player">
+                            <div class='muted'><i class="fa fa-refresh fa-spin"></i> Loading data...</div>
+                            <br>
+                        </div>
                     </div>
                 </div>
                 % endif
@@ -894,6 +925,28 @@ DOCUMENTATION :: END
     });
 </script>
 % endif
+% if data['media_type'] in ('movie', 'show', 'season', 'episode', 'artist', 'album', 'track'):
+<script>
+    // Populate watch time stats
+    $.ajax({
+        url: 'item_watch_time_stats',
+        async: true,
+        data: { rating_key: "${data['rating_key']}", media_type: "${data['media_type']}" },
+        complete: function(xhr, status) {
+            $("#watch-time-stats").html(xhr.responseText);
+        }
+    });
+    // Populate user stats
+    $.ajax({
+        url: 'item_user_stats',
+        async: true,
+        data: { rating_key: "${data['rating_key']}", media_type: "${data['media_type']}" },
+        complete: function(xhr, status) {
+            $("#user-stats").html(xhr.responseText);
+        }
+    });
+</script>
+% endif
 % if data['media_type'] == 'collection':
 <script>
     $.ajax({
@@ -945,6 +998,21 @@ DOCUMENTATION :: END
         template: '<div class="popover channel-thumbnail-popover" role="tooltip"><div class="arrow" style="top: 50%;"></div><div class="popover-content"></div></div>',
         content: function () {
             return '<div class="channel-thumbnail" style="background-image: url(' + $(this).data('img') + ');" />';
+        }
+    });
+
+    $('.summary-content-summary').hasScrollBar() ? $('.summary-toggle').show() : $('.summary-toggle').hide();
+
+    $('.summary-toggle a').on('click', function() {
+        var $this = $(this);
+        var $content = $this.parent().prev('div.summary-content-summary');
+
+        if ($this.hasClass('show-more')) {
+            $this.html('Read less &nbsp;<i class="fa fa-chevron-up"></i>').toggleClass('show-more').toggleClass('show-less');
+            $content.animate({'height': $content[0].scrollHeight});
+        } else {
+            $this.html('Read more &nbsp;<i class="fa fa-chevron-down"></i>').toggleClass('show-more').toggleClass('show-less');
+            $content.animate({'height': '60px'});
         }
     });
 </script>
