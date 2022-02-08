@@ -207,14 +207,12 @@ class WebInterface(object):
     @requireAuth(member_of("admin"))
     def welcome(self, **kwargs):
         config = {
-            "pms_client_id": plexpy.CONFIG.PMS_CLIENT_ID,
             "pms_identifier": plexpy.CONFIG.PMS_IDENTIFIER,
             "pms_ip": plexpy.CONFIG.PMS_IP,
             "pms_port": plexpy.CONFIG.PMS_PORT,
             "pms_is_remote": plexpy.CONFIG.PMS_IS_REMOTE,
             "pms_ssl": plexpy.CONFIG.PMS_SSL,
             "pms_is_cloud": plexpy.CONFIG.PMS_IS_CLOUD,
-            "pms_token": plexpy.CONFIG.PMS_TOKEN,
             "pms_name": plexpy.CONFIG.PMS_NAME,
             "logging_ignore_interval": plexpy.CONFIG.LOGGING_IGNORE_INTERVAL
         }
@@ -229,8 +227,18 @@ class WebInterface(object):
     @cherrypy.expose
     @cherrypy.tools.json_out()
     @requireAuth(member_of("admin"))
+    def save_pms_token(self, token=None, client_id=None, **kwargs):
+        if token is not None:
+            plexpy.CONFIG.PMS_TOKEN = token
+        if client_id is not None:
+            plexpy.CONFIG.PMS_CLIENT_ID = client_id
+        plexpy.CONFIG.write()
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    @requireAuth(member_of("admin"))
     @addtoapi("get_server_list")
-    def discover(self, token=None, include_cloud=True, all_servers=True, **kwargs):
+    def discover(self, include_cloud=True, all_servers=True, **kwargs):
         """ Get all your servers that are published to Plex.tv.
 
             ```
@@ -255,11 +263,6 @@ class WebInterface(object):
                      ]
             ```
         """
-        if token:
-            # Need to set token so result doesn't return http 401
-            plexpy.CONFIG.__setattr__('PMS_TOKEN', token)
-            plexpy.CONFIG.write()
-
         include_cloud = not (include_cloud == 'false')
         all_servers = not (all_servers == 'false')
 
@@ -377,23 +380,18 @@ class WebInterface(object):
             return {'result': 'error', 'message': 'Failed to terminate session.'}
 
     @cherrypy.expose
-    @cherrypy.tools.json_out()
     @requireAuth(member_of("admin"))
-    def return_plex_xml_url(self, endpoint='', plextv=False, **kwargs):
-        kwargs['X-Plex-Token'] = plexpy.CONFIG.PMS_TOKEN
-
+    def open_plex_xml(self, endpoint='', plextv=False, **kwargs):
         if helpers.bool_true(plextv):
             base_url = 'https://plex.tv'
         else:
-            if plexpy.CONFIG.PMS_URL_OVERRIDE:
-                base_url = plexpy.CONFIG.PMS_URL_OVERRIDE
-            else:
-                base_url = plexpy.CONFIG.PMS_URL
+            base_url = plexpy.CONFIG.PMS_URL_OVERRIDE or plexpy.CONFIG.PMS_URL
 
         if '{machine_id}' in endpoint:
             endpoint = endpoint.format(machine_id=plexpy.CONFIG.PMS_IDENTIFIER)
 
-        return base_url + endpoint + '?' + urlencode(kwargs)
+        url = base_url + endpoint + ('?' + urlencode(kwargs) if kwargs else '')
+        return serve_template(templatename="xml_shortcut.html", title="Plex XML", url=url)
 
     @cherrypy.expose
     @requireAuth()
@@ -1922,6 +1920,7 @@ class WebInterface(object):
                           "guid": "com.plexapp.agents.thetvdb://121361/6/1?lang=en",
                           "ip_address": "xxx.xxx.xxx.xxx",
                           "live": 0,
+                          "location": "wan",
                           "machine_id": "lmd93nkn12k29j2lnm",
                           "media_index": 17,
                           "media_type": "episode",
@@ -1936,7 +1935,9 @@ class WebInterface(object):
                           "player": "Castle-PC",
                           "rating_key": 4348,
                           "reference_id": 1123,
+                          "relayed": 0,
                           "row_id": 1124,
+                          "secure": 1,
                           "session_key": null,
                           "started": 1462688107,
                           "state": null,
@@ -2132,7 +2133,10 @@ class WebInterface(object):
         if not helpers.is_valid_ip(ip_address):
             ip_address = None
 
-        return serve_template(templatename="ip_address_modal.html", title="IP Address Details", data=ip_address)
+        public = helpers.is_public_ip(ip_address)
+
+        return serve_template(templatename="ip_address_modal.html", title="IP Address Details",
+                              data=ip_address, public=public, kwargs=kwargs)
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
@@ -3089,7 +3093,7 @@ class WebInterface(object):
     def toggleVerbose(self, **kwargs):
         plexpy.VERBOSE = not plexpy.VERBOSE
 
-        plexpy.CONFIG.__setattr__('VERBOSE_LOGS', plexpy.VERBOSE)
+        plexpy.CONFIG.VERBOSE_LOGS = plexpy.VERBOSE
         plexpy.CONFIG.write()
 
         logger.initLogger(console=not plexpy.QUIET, log_dir=plexpy.CONFIG.LOG_DIR, verbose=plexpy.VERBOSE)
@@ -3129,127 +3133,25 @@ class WebInterface(object):
     @cherrypy.expose
     @requireAuth(member_of("admin"))
     def settings(self, **kwargs):
-        interface_dir = os.path.join(plexpy.PROG_DIR, 'data/interfaces/')
-        interface_list = [name for name in os.listdir(interface_dir) if
-                          os.path.isdir(os.path.join(interface_dir, name))]
+        settings_dict = {}
+
+        for setting in config.SETTINGS:
+            settings_dict[setting.lower()] = getattr(plexpy.CONFIG, setting)
+
+        for setting in config.CHECKED_SETTINGS:
+            settings_dict[setting.lower()] = checked(getattr(plexpy.CONFIG, setting))
 
         # Initialise blank passwords so we do not expose them in the html forms
         # but users are still able to clear them
         if plexpy.CONFIG.HTTP_PASSWORD != '':
-            http_password = '    '
+            settings_dict['http_password'] = '    '
         else:
-            http_password = ''
+            settings_dict['http_password'] = ''
 
-        config = {
-            "allow_guest_access": checked(plexpy.CONFIG.ALLOW_GUEST_ACCESS),
-            "history_table_activity": checked(plexpy.CONFIG.HISTORY_TABLE_ACTIVITY),
-            "http_host": plexpy.CONFIG.HTTP_HOST,
-            "http_username": plexpy.CONFIG.HTTP_USERNAME,
-            "http_port": plexpy.CONFIG.HTTP_PORT,
-            "http_password": http_password,
-            "http_root": plexpy.CONFIG.HTTP_ROOT,
-            "http_proxy": checked(plexpy.CONFIG.HTTP_PROXY),
-            "http_plex_admin": checked(plexpy.CONFIG.HTTP_PLEX_ADMIN),
-            "launch_browser": checked(plexpy.CONFIG.LAUNCH_BROWSER),
-            "launch_startup": checked(plexpy.CONFIG.LAUNCH_STARTUP),
-            "enable_https": checked(plexpy.CONFIG.ENABLE_HTTPS),
-            "https_create_cert": checked(plexpy.CONFIG.HTTPS_CREATE_CERT),
-            "https_cert": plexpy.CONFIG.HTTPS_CERT,
-            "https_cert_chain": plexpy.CONFIG.HTTPS_CERT_CHAIN,
-            "https_key": plexpy.CONFIG.HTTPS_KEY,
-            "https_domain": plexpy.CONFIG.HTTPS_DOMAIN,
-            "https_ip": plexpy.CONFIG.HTTPS_IP,
-            "http_base_url": plexpy.CONFIG.HTTP_BASE_URL,
-            "anon_redirect": plexpy.CONFIG.ANON_REDIRECT,
-            "anon_redirect_dynamic": checked(plexpy.CONFIG.ANON_REDIRECT_DYNAMIC),
-            "api_enabled": checked(plexpy.CONFIG.API_ENABLED),
-            "api_key": plexpy.CONFIG.API_KEY,
-            "update_db_interval": plexpy.CONFIG.UPDATE_DB_INTERVAL,
-            "freeze_db": checked(plexpy.CONFIG.FREEZE_DB),
-            "backup_days": plexpy.CONFIG.BACKUP_DAYS,
-            "backup_dir": plexpy.CONFIG.BACKUP_DIR,
-            "backup_interval": plexpy.CONFIG.BACKUP_INTERVAL,
-            "cache_dir": plexpy.CONFIG.CACHE_DIR,
-            "export_dir": plexpy.CONFIG.EXPORT_DIR,
-            "log_dir": plexpy.CONFIG.LOG_DIR,
-            "log_blacklist": checked(plexpy.CONFIG.LOG_BLACKLIST),
-            "check_github": checked(plexpy.CONFIG.CHECK_GITHUB),
-            "check_github_interval": plexpy.CONFIG.CHECK_GITHUB_INTERVAL,
-            "interface_list": interface_list,
-            "cache_sizemb": plexpy.CONFIG.CACHE_SIZEMB,
-            "pms_client_id": plexpy.CONFIG.PMS_CLIENT_ID,
-            "pms_identifier": plexpy.CONFIG.PMS_IDENTIFIER,
-            "pms_ip": plexpy.CONFIG.PMS_IP,
-            "pms_logs_folder": plexpy.CONFIG.PMS_LOGS_FOLDER,
-            "pms_port": plexpy.CONFIG.PMS_PORT,
-            "pms_token": plexpy.CONFIG.PMS_TOKEN,
-            "pms_ssl": plexpy.CONFIG.PMS_SSL,
-            "pms_is_remote": plexpy.CONFIG.PMS_IS_REMOTE,
-            "pms_is_cloud": plexpy.CONFIG.PMS_IS_CLOUD,
-            "pms_url": plexpy.CONFIG.PMS_URL,
-            "pms_url_manual": checked(plexpy.CONFIG.PMS_URL_MANUAL),
-            "pms_web_url": plexpy.CONFIG.PMS_WEB_URL,
-            "pms_name": plexpy.CONFIG.PMS_NAME,
-            "pms_update_check_interval": plexpy.CONFIG.PMS_UPDATE_CHECK_INTERVAL,
-            "date_format": plexpy.CONFIG.DATE_FORMAT,
-            "time_format": plexpy.CONFIG.TIME_FORMAT,
-            "week_start_monday": checked(plexpy.CONFIG.WEEK_START_MONDAY),
-            "get_file_sizes": checked(plexpy.CONFIG.GET_FILE_SIZES),
-            "monitor_pms_updates": checked(plexpy.CONFIG.MONITOR_PMS_UPDATES),
-            "refresh_libraries_interval": plexpy.CONFIG.REFRESH_LIBRARIES_INTERVAL,
-            "refresh_libraries_on_startup": checked(plexpy.CONFIG.REFRESH_LIBRARIES_ON_STARTUP),
-            "refresh_users_interval": plexpy.CONFIG.REFRESH_USERS_INTERVAL,
-            "refresh_users_on_startup": checked(plexpy.CONFIG.REFRESH_USERS_ON_STARTUP),
-            "logging_ignore_interval": plexpy.CONFIG.LOGGING_IGNORE_INTERVAL,
-            "notify_consecutive": checked(plexpy.CONFIG.NOTIFY_CONSECUTIVE),
-            "notify_upload_posters": plexpy.CONFIG.NOTIFY_UPLOAD_POSTERS,
-            "notify_recently_added_upgrade": checked(plexpy.CONFIG.NOTIFY_RECENTLY_ADDED_UPGRADE),
-            "notify_group_recently_added_grandparent": checked(plexpy.CONFIG.NOTIFY_GROUP_RECENTLY_ADDED_GRANDPARENT),
-            "notify_group_recently_added_parent": checked(plexpy.CONFIG.NOTIFY_GROUP_RECENTLY_ADDED_PARENT),
-            "notify_recently_added_delay": plexpy.CONFIG.NOTIFY_RECENTLY_ADDED_DELAY,
-            "notify_remote_access_threshold": plexpy.CONFIG.NOTIFY_REMOTE_ACCESS_THRESHOLD,
-            "notify_concurrent_by_ip": checked(plexpy.CONFIG.NOTIFY_CONCURRENT_BY_IP),
-            "notify_concurrent_threshold": plexpy.CONFIG.NOTIFY_CONCURRENT_THRESHOLD,
-            "notify_continued_session_threshold": plexpy.CONFIG.NOTIFY_CONTINUED_SESSION_THRESHOLD,
-            "notify_new_device_initial_only": checked(plexpy.CONFIG.NOTIFY_NEW_DEVICE_INITIAL_ONLY),
-            "notify_server_connection_threshold": plexpy.CONFIG.NOTIFY_SERVER_CONNECTION_THRESHOLD,
-            "notify_server_update_repeat": checked(plexpy.CONFIG.NOTIFY_SERVER_UPDATE_REPEAT),
-            "notify_plexpy_update_repeat": checked(plexpy.CONFIG.NOTIFY_PLEXPY_UPDATE_REPEAT),
-            "home_sections": json.dumps(plexpy.CONFIG.HOME_SECTIONS),
-            "home_stats_cards": json.dumps(plexpy.CONFIG.HOME_STATS_CARDS),
-            "home_library_cards": json.dumps(plexpy.CONFIG.HOME_LIBRARY_CARDS),
-            "home_refresh_interval": plexpy.CONFIG.HOME_REFRESH_INTERVAL,
-            "buffer_threshold": plexpy.CONFIG.BUFFER_THRESHOLD,
-            "buffer_wait": plexpy.CONFIG.BUFFER_WAIT,
-            "group_history_tables": checked(plexpy.CONFIG.GROUP_HISTORY_TABLES),
-            "git_token": plexpy.CONFIG.GIT_TOKEN,
-            "imgur_client_id": plexpy.CONFIG.IMGUR_CLIENT_ID,
-            "cloudinary_cloud_name": plexpy.CONFIG.CLOUDINARY_CLOUD_NAME,
-            "cloudinary_api_key": plexpy.CONFIG.CLOUDINARY_API_KEY,
-            "cloudinary_api_secret": plexpy.CONFIG.CLOUDINARY_API_SECRET,
-            "cache_images": checked(plexpy.CONFIG.CACHE_IMAGES),
-            "pms_version": plexpy.CONFIG.PMS_VERSION,
-            "plexpy_auto_update": checked(plexpy.CONFIG.PLEXPY_AUTO_UPDATE),
-            "git_branch": plexpy.CONFIG.GIT_BRANCH,
-            "git_path": plexpy.CONFIG.GIT_PATH,
-            "git_remote": plexpy.CONFIG.GIT_REMOTE,
-            "movie_watched_percent": plexpy.CONFIG.MOVIE_WATCHED_PERCENT,
-            "tv_watched_percent": plexpy.CONFIG.TV_WATCHED_PERCENT,
-            "music_watched_percent": plexpy.CONFIG.MUSIC_WATCHED_PERCENT,
-            "themoviedb_lookup": checked(plexpy.CONFIG.THEMOVIEDB_LOOKUP),
-            "tvmaze_lookup": checked(plexpy.CONFIG.TVMAZE_LOOKUP),
-            "musicbrainz_lookup": checked(plexpy.CONFIG.MUSICBRAINZ_LOOKUP),
-            "show_advanced_settings": plexpy.CONFIG.SHOW_ADVANCED_SETTINGS,
-            "newsletter_dir": plexpy.CONFIG.NEWSLETTER_DIR,
-            "newsletter_self_hosted": checked(plexpy.CONFIG.NEWSLETTER_SELF_HOSTED),
-            "newsletter_auth": plexpy.CONFIG.NEWSLETTER_AUTH,
-            "newsletter_password": plexpy.CONFIG.NEWSLETTER_PASSWORD,
-            "newsletter_inline_styles": checked(plexpy.CONFIG.NEWSLETTER_INLINE_STYLES),
-            "newsletter_custom_dir": plexpy.CONFIG.NEWSLETTER_CUSTOM_DIR,
-            "sys_tray_icon": checked(plexpy.CONFIG.SYS_TRAY_ICON)
-        }
+        for key in ('home_sections', 'home_stats_cards', 'home_library_cards'):
+            settings_dict[key] = json.dumps(settings_dict[key])
 
-        return serve_template(templatename="settings.html", title="Settings", config=config, kwargs=kwargs)
+        return serve_template(templatename="settings.html", title="Settings", config=settings_dict)
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
@@ -3270,24 +3172,8 @@ class WebInterface(object):
         if kwargs.pop('first_run', None):
             first_run = True
 
-        checked_configs = [
-            "launch_browser", "launch_startup", "enable_https", "https_create_cert",
-            "api_enabled", "freeze_db", "check_github",
-            "group_history_tables",
-            "pms_url_manual", "week_start_monday",
-            "refresh_libraries_on_startup", "refresh_users_on_startup",
-            "notify_consecutive", "notify_recently_added_upgrade",
-            "notify_group_recently_added_grandparent", "notify_group_recently_added_parent",
-            "notify_new_device_initial_only",
-            "notify_server_update_repeat", "notify_plexpy_update_repeat",
-            "monitor_pms_updates", "get_file_sizes", "log_blacklist",
-            "allow_guest_access", "cache_images", "http_proxy", "notify_concurrent_by_ip",
-            "history_table_activity", "plexpy_auto_update",
-            "themoviedb_lookup", "tvmaze_lookup", "musicbrainz_lookup", "http_plex_admin",
-            "newsletter_self_hosted", "newsletter_inline_styles", "sys_tray_icon",
-            "anon_redirect_dynamic"
-        ]
-        for checked_config in checked_configs:
+        for checked_config in config.CHECKED_SETTINGS:
+            checked_config = checked_config.lower()
             if checked_config not in kwargs:
                 # checked items should be zero or one. if they were not sent then the item was not checked
                 kwargs[checked_config] = 0
@@ -3296,9 +3182,9 @@ class WebInterface(object):
 
         # If http password exists in config, do not overwrite when blank value received
         if kwargs.get('http_password') == '    ':
-            kwargs['http_password'] = plexpy.CONFIG.HTTP_PASSWORD
+            del kwargs['http_password']
         else:
-            if kwargs['http_password'] != '':
+            if kwargs.get('http_password', '') != '':
                 kwargs['http_password'] = make_hash(kwargs['http_password'])
             # Flag to refresh JWT uuid to log out clients
             kwargs['jwt_update_secret'] = True and not first_run
@@ -3373,6 +3259,8 @@ class WebInterface(object):
         if kwargs.pop('auth_changed', None):
             refresh_users = True
 
+        all_settings = config.SETTINGS + config.CHECKED_SETTINGS
+        kwargs = {k: v for k, v in kwargs.items() if k.upper() in all_settings}
         plexpy.CONFIG.process_kwargs(kwargs)
 
         # Write the config
@@ -3413,6 +3301,23 @@ class WebInterface(object):
             threading.Thread(target=users.refresh_users).start()
 
         return {'result': 'success', 'message': 'Settings saved.'}
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    @requireAuth(member_of("admin"))
+    def check_pms_token(self, **kwargs):
+        plex_tv = plextv.PlexTV()
+        response = plex_tv.get_plextv_resources(return_response=True)
+        if not response.ok:
+            cherrypy.response.status = 401
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    @requireAuth(member_of("admin"))
+    def get_pms_downloads(self, update_channel, **kwargs):
+        plex_tv = plextv.PlexTV()
+        downloads = plex_tv.get_plex_downloads(update_channel=update_channel)
+        return downloads
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
@@ -3462,8 +3367,7 @@ class WebInterface(object):
                     plexpy.CONFIG.PMS_PLATFORM, plexpy.CONFIG.PMS_PLATFORM),
                 'pms_update_channel': plexpy.CONFIG.PMS_UPDATE_CHANNEL,
                 'pms_update_distro': plexpy.CONFIG.PMS_UPDATE_DISTRO,
-                'pms_update_distro_build': plexpy.CONFIG.PMS_UPDATE_DISTRO_BUILD,
-                'plex_update_channel': 'plexpass' if update_channel == 'beta' else 'public'}
+                'pms_update_distro_build': plexpy.CONFIG.PMS_UPDATE_DISTRO_BUILD}
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
@@ -4395,7 +4299,7 @@ class WebInterface(object):
             raise cherrypy.HTTPRedirect(plexpy.HTTP_ROOT + "home")
 
         # Show changelog after updating
-        plexpy.CONFIG.__setattr__('UPDATE_SHOW_CHANGELOG', 1)
+        plexpy.CONFIG.UPDATE_SHOW_CHANGELOG = 1
         plexpy.CONFIG.write()
         return self.do_state_change('update', 'Updating', 120)
 
@@ -4407,8 +4311,8 @@ class WebInterface(object):
             raise cherrypy.HTTPRedirect(plexpy.HTTP_ROOT + "home")
 
         # Set the new git remote and branch
-        plexpy.CONFIG.__setattr__('GIT_REMOTE', git_remote)
-        plexpy.CONFIG.__setattr__('GIT_BRANCH', git_branch)
+        plexpy.CONFIG.GIT_REMOTE = git_remote
+        plexpy.CONFIG.GIT_BRANCH = git_branch
         plexpy.CONFIG.write()
         return self.do_state_change('checkout', 'Switching Git Branches', 120)
 
@@ -4436,7 +4340,7 @@ class WebInterface(object):
 
         # Set update changelog shown status
         if helpers.bool_true(update_shown):
-            plexpy.CONFIG.__setattr__('UPDATE_SHOW_CHANGELOG', 0)
+            plexpy.CONFIG.UPDATE_SHOW_CHANGELOG = 0
             plexpy.CONFIG.write()
 
         return versioncheck.read_changelog(latest_only=latest_only, since_prev_release=since_prev_release)
@@ -4933,13 +4837,24 @@ class WebInterface(object):
     def download_config(self, **kwargs):
         """ Download the Tautulli configuration file. """
         config_file = config.FILENAME
+        config_copy = os.path.join(plexpy.CONFIG.CACHE_DIR, config_file)
 
         try:
             plexpy.CONFIG.write()
+            shutil.copyfile(plexpy.CONFIG_FILE, config_copy)
         except:
             pass
 
-        return serve_download(plexpy.CONFIG_FILE, name=config_file)
+        try:
+            cfg = config.Config(config_copy)
+            for key in config._DO_NOT_DOWNLOAD_KEYS:
+                setattr(cfg, key, '')
+            cfg.write()
+        except:
+            cherrypy.response.status = 500
+            return 'Error downloading config. Check the logs.'
+
+        return serve_download(config_copy, name=config_file)
 
     @cherrypy.expose
     @requireAuth(member_of("admin"))
@@ -4947,16 +4862,26 @@ class WebInterface(object):
     def download_database(self, **kwargs):
         """ Download the Tautulli database file. """
         database_file = database.FILENAME
+        database_copy = os.path.join(plexpy.CONFIG.CACHE_DIR, database_file)
 
         try:
             db = database.MonitorDatabase()
             db.connection.execute('begin immediate')
-            shutil.copyfile(plexpy.DB_FILE, os.path.join(plexpy.CONFIG.CACHE_DIR, database_file))
+            shutil.copyfile(plexpy.DB_FILE, database_copy)
             db.connection.rollback()
         except:
             pass
 
-        return serve_download(os.path.join(plexpy.CONFIG.CACHE_DIR, database_file), name=database_file)
+        # Remove tokens
+        db = database.MonitorDatabase(database_copy)
+        try:
+            db.action('UPDATE users SET user_token = NULL, server_token = NULL')
+        except:
+            logger.error('Failed to remove tokens from downloaded database.')
+            cherrypy.response.status = 500
+            return 'Error downloading database. Check the logs.'
+
+        return serve_download(database_copy, name=database_file)
 
     @cherrypy.expose
     @requireAuth(member_of("admin"))
@@ -5220,7 +5145,7 @@ class WebInterface(object):
     @cherrypy.tools.json_out()
     @requireAuth(member_of("admin"))
     @addtoapi()
-    def update_metadata_details(self, old_rating_key, new_rating_key, media_type, **kwargs):
+    def update_metadata_details(self, old_rating_key, new_rating_key, media_type, single_update=False, **kwargs):
         """ Update the metadata in the Tautulli database by matching rating keys.
             Also updates all parents or children of the media item if it is a show/season/episode
             or artist/album/track.
@@ -5238,6 +5163,8 @@ class WebInterface(object):
                 None
             ```
         """
+        single_update = helpers.bool_true(single_update)
+
         if new_rating_key:
             data_factory = datafactory.DataFactory()
             pms_connect = pmsconnect.PmsConnect()
@@ -5247,7 +5174,8 @@ class WebInterface(object):
 
             result = data_factory.update_metadata(old_key_list=old_key_list,
                                                   new_key_list=new_key_list,
-                                                  media_type=media_type)
+                                                  media_type=media_type,
+                                                  single_update=single_update)
 
         if result:
             return {'message': result}
@@ -6386,6 +6314,37 @@ class WebInterface(object):
     @cherrypy.tools.json_out()
     @requireAuth(member_of("admin"))
     @addtoapi()
+    def get_tautulli_info(self, **kwargs):
+        """ Get info about the Tautulli server.
+
+            ```
+            Required parameters:
+                None
+
+            Optional parameters:
+                None
+
+            Returns:
+                json:
+                    {"tautulli_install_type": "git",
+                     "tautulli_version": "v2.8.1",
+                     "tautulli_branch": "master",
+                     "tautulli_commit": "2410eb33805aaac4bd1c5dad0f71e4f15afaf742",
+                     "tautulli_platform": "Windows",
+                     "tautulli_platform_release": "10",
+                     "tautulli_platform_version": "10.0.19043",
+                     "tautulli_platform_linux_distro": "",
+                     "tautulli_platform_device_name": "Winterfell-Server",
+                     "tautulli_python_version": "3.10.0"
+                     }
+            ```
+        """
+        return plexpy.get_tautulli_info()
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    @requireAuth(member_of("admin"))
+    @addtoapi()
     def get_pms_update(self, **kwargs):
         """ Check for updates to the Plex Media Server.
 
@@ -6414,7 +6373,7 @@ class WebInterface(object):
             ```
         """
         plex_tv = plextv.PlexTV()
-        result = plex_tv.get_plex_downloads()
+        result = plex_tv.get_plex_update()
         return result
 
     @cherrypy.expose

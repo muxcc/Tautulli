@@ -44,6 +44,13 @@ else:
     from plexpy import pmsconnect
     from plexpy import session
 
+# Temporarily store update_metadata row ids in memory to prevent rating_key collisions
+_UPDATE_METADATA_IDS = {
+    'grandparent_rating_key_ids': set(),
+    'parent_rating_key_ids': set(),
+    'rating_key_ids': set()
+}
+
 
 class DataFactory(object):
     """
@@ -101,6 +108,9 @@ class DataFactory(object):
             'player',
             'ip_address',
             'machine_id',
+            'location',
+            'secure',
+            'relayed',
             'session_history.media_type',
             '(CASE WHEN session_history_metadata.live = 1 THEN "live" ELSE session_history.media_type END) \
              AS media_type_live',
@@ -156,6 +166,9 @@ class DataFactory(object):
                 'player',
                 'ip_address',
                 'machine_id',
+                'location',
+                'secure',
+                'relayed',
                 'media_type',
                 '(CASE WHEN live = 1 THEN "live" ELSE media_type END) AS media_type_live',
                 'rating_key',
@@ -271,6 +284,9 @@ class DataFactory(object):
                    'ip_address': item['ip_address'],
                    'live': item['live'],
                    'machine_id': item['machine_id'],
+                   'location': item['location'],
+                   'secure': item['secure'],
+                   'relayed': item['relayed'],
                    'media_type': item['media_type'],
                    'rating_key': item['rating_key'],
                    'parent_rating_key': item['parent_rating_key'],
@@ -1822,7 +1838,7 @@ class DataFactory(object):
 
         return key_list
 
-    def update_metadata(self, old_key_list='', new_key_list='', media_type=''):
+    def update_metadata(self, old_key_list='', new_key_list='', media_type='', single_update=False):
         pms_connect = pmsconnect.PmsConnect()
         monitor_db = database.MonitorDatabase()
 
@@ -1844,6 +1860,15 @@ class DataFactory(object):
 
         if mapping:
             logger.info("Tautulli DataFactory :: Updating metadata in the database.")
+
+            global _UPDATE_METADATA_IDS
+            if single_update:
+                _UPDATE_METADATA_IDS = {
+                    'grandparent_rating_key_ids': set(),
+                    'parent_rating_key_ids': set(),
+                    'rating_key_ids': set()
+                }
+
             for old_key, new_key in mapping.items():
                 metadata = pms_connect.get_metadata_details(new_key)
 
@@ -1853,31 +1878,96 @@ class DataFactory(object):
 
                     if metadata['media_type'] == 'show' or metadata['media_type'] == 'artist':
                         # check grandparent_rating_key (2 tables)
-                        monitor_db.action('UPDATE session_history SET grandparent_rating_key = ? WHERE grandparent_rating_key = ?',
-                                          [new_key, old_key])
-                        monitor_db.action('UPDATE session_history_metadata SET grandparent_rating_key = ? WHERE grandparent_rating_key = ?',
-                                          [new_key, old_key])
+                        query = (
+                            'SELECT id FROM session_history '
+                            'WHERE grandparent_rating_key = ? '
+                        )
+                        args = [old_key]
+
+                        if _UPDATE_METADATA_IDS['grandparent_rating_key_ids']:
+                            query += 'AND id NOT IN (%s)' % ','.join(_UPDATE_METADATA_IDS['grandparent_rating_key_ids'])
+
+                        ids = [str(row['id']) for row in monitor_db.select(query, args)]
+                        if ids:
+                            _UPDATE_METADATA_IDS['grandparent_rating_key_ids'].update(ids)
+                        else:
+                            continue
+
+                        monitor_db.action(
+                            'UPDATE session_history SET grandparent_rating_key = ? '
+                            'WHERE id IN (%s)' % ','.join(ids),
+                            [new_key]
+                        )
+                        monitor_db.action(
+                            'UPDATE session_history_metadata SET grandparent_rating_key = ? '
+                            'WHERE id IN (%s)' % ','.join(ids),
+                            [new_key]
+                        )
+
                     elif metadata['media_type'] == 'season' or metadata['media_type'] == 'album':
                         # check parent_rating_key (2 tables)
-                        monitor_db.action('UPDATE session_history SET parent_rating_key = ? WHERE parent_rating_key = ?',
-                                          [new_key, old_key])
-                        monitor_db.action('UPDATE session_history_metadata SET parent_rating_key = ? WHERE parent_rating_key = ?',
-                                          [new_key, old_key])
+                        query = (
+                            'SELECT id FROM session_history '
+                            'WHERE parent_rating_key = ? '
+                        )
+                        args = [old_key]
+
+                        if _UPDATE_METADATA_IDS['parent_rating_key_ids']:
+                            query += 'AND id NOT IN (%s)' % ','.join(_UPDATE_METADATA_IDS['parent_rating_key_ids'])
+
+                        ids = [str(row['id']) for row in monitor_db.select(query, args)]
+                        if ids:
+                            _UPDATE_METADATA_IDS['parent_rating_key_ids'].update(ids)
+                        else:
+                            continue
+
+                        monitor_db.action(
+                            'UPDATE session_history SET parent_rating_key = ? '
+                            'WHERE id IN (%s)' % ','.join(ids),
+                            [new_key]
+                        )
+                        monitor_db.action(
+                            'UPDATE session_history_metadata SET parent_rating_key = ? '
+                            'WHERE id IN (%s)' % ','.join(ids),
+                            [new_key]
+                        )
+
                     else:
                         # check rating_key (2 tables)
-                        monitor_db.action('UPDATE session_history SET rating_key = ? WHERE rating_key = ?',
-                                          [new_key, old_key])
-                        monitor_db.action('UPDATE session_history_media_info SET rating_key = ? WHERE rating_key = ?',
-                                          [new_key, old_key])
+                        query = (
+                            'SELECT id FROM session_history '
+                            'WHERE rating_key = ? '
+                        )
+                        args = [old_key]
+
+                        if _UPDATE_METADATA_IDS['rating_key_ids']:
+                            query += 'AND id NOT IN (%s)' % ','.join(_UPDATE_METADATA_IDS['rating_key_ids'])
+
+                        ids = [str(row['id']) for row in monitor_db.select(query, args)]
+                        if ids:
+                            _UPDATE_METADATA_IDS['rating_key_ids'].update(ids)
+                        else:
+                            continue
+
+                        monitor_db.action(
+                            'UPDATE session_history SET rating_key = ? '
+                            'WHERE id IN (%s)' % ','.join(ids),
+                            [new_key]
+                        )
+                        monitor_db.action(
+                            'UPDATE session_history_media_info SET rating_key = ? '
+                            'WHERE id IN (%s)' % ','.join(ids),
+                            [new_key]
+                        )
 
                         # update session_history_metadata table
-                        self.update_metadata_details(old_key, new_key, metadata)
+                        self.update_metadata_details(old_key, new_key, metadata, ids)
 
             return 'Updated metadata in database.'
         else:
             return 'Unable to update metadata in database. No changes were made.'
 
-    def update_metadata_details(self, old_rating_key='', new_rating_key='', metadata=None):
+    def update_metadata_details(self, old_rating_key='', new_rating_key='', metadata=None, ids=None):
 
         if metadata:
             # Create full_title
@@ -1900,8 +1990,9 @@ class DataFactory(object):
 
             monitor_db = database.MonitorDatabase()
 
-            query = 'UPDATE session_history SET section_id = ? WHERE rating_key = ?'
-            args = [metadata['section_id'], old_rating_key]
+            query = 'UPDATE session_history SET section_id = ? ' \
+                    'WHERE id IN (%s)' % ','.join(ids)
+            args = [metadata['section_id']]
             monitor_db.action(query=query, args=args)
 
             # Update the session_history_metadata table
@@ -1913,7 +2004,7 @@ class DataFactory(object):
                     'added_at = ?, updated_at = ?, last_viewed_at = ?, content_rating = ?, summary = ?, ' \
                     'tagline = ?, rating = ?, duration = ?, guid = ?, directors = ?, writers = ?, actors = ?, ' \
                     'genres = ?, studio = ?, labels = ? ' \
-                    'WHERE rating_key = ?'
+                    'WHERE id IN (%s)' % ','.join(ids)
 
             args = [metadata['rating_key'], metadata['parent_rating_key'], metadata['grandparent_rating_key'],
                     metadata['title'], metadata['parent_title'], metadata['grandparent_title'],
@@ -1923,8 +2014,7 @@ class DataFactory(object):
                     metadata['year'], metadata['originally_available_at'], metadata['added_at'], metadata['updated_at'],
                     metadata['last_viewed_at'], metadata['content_rating'], metadata['summary'], metadata['tagline'],
                     metadata['rating'], metadata['duration'], metadata['guid'], directors, writers, actors, genres,
-                    metadata['studio'], labels,
-                    old_rating_key]
+                    metadata['studio'], labels]
 
             monitor_db.action(query=query, args=args)
 
