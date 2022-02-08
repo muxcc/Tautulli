@@ -1079,7 +1079,7 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
         'labels': ', '.join(notify_params['labels']),
         'collections': ', '.join(notify_params['collections']),
         'summary': notify_params['summary'],
-        'summary_short' : notify_params['summary'][:325]+" ...",
+        'summary_short' : notify_params['summary'][:330]+" ...",
         'tagline': notify_params['tagline'],
         'rating': rating,
         'critic_rating':  critic_rating,
@@ -1376,12 +1376,16 @@ def strip_tag(data, agent_id=None):
         data = bleach.clean(data, tags=whitelist.keys(), attributes=whitelist, strip=True)
 
     elif agent_id == 13:
-        # Allow tags b, i, code, pre, a[href] for Telegram
-        whitelist = {'b': [],
-                     'i': [],
-                     'code': [],
-                     'pre': [],
-                     'a': ['href']}
+        # Allow tags for Telegram
+        # https://core.telegram.org/bots/api#html-style
+        whitelist = {'b': [], 'strong': [],
+                     'i': [], 'em': [],
+                     'u': [], 'ins': [],
+                     's': [], 'strike': [], 'del': [],
+                     'span': ['class'], 'tg-spoiler': [],
+                     'a': ['href'],
+                     'code': ['class'],
+                     'pre': []}
         data = bleach.clean(data, tags=whitelist.keys(), attributes=whitelist, strip=True)
 
     elif agent_id in (10, 14, 20, 25):
