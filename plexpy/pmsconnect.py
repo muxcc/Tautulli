@@ -870,7 +870,7 @@ class PmsConnect(object):
                         'parent_media_index': helpers.get_xml_attr(metadata_main, 'parentIndex'),
                         'studio': show_details.get('studio', ''),
                         'content_rating': show_details.get('content_rating', ''),
-                        'summary': show_details.get('summary', ''),
+                        'summary': helpers.get_xml_attr(metadata_main, 'summary') or show_details.get('summary', ''),
                         'tagline': helpers.get_xml_attr(metadata_main, 'tagline'),
                         'rating': helpers.get_xml_attr(metadata_main, 'rating'),
                         'rating_image': helpers.get_xml_attr(metadata_main, 'ratingImage'),
@@ -1734,6 +1734,8 @@ class PmsConnect(object):
 
             transcode_progress = helpers.get_xml_attr(transcode_info, 'progress')
             transcode_speed = helpers.get_xml_attr(transcode_info, 'speed')
+            transcode_min_offset = helpers.get_xml_attr(transcode_info, 'minOffsetAvailable')
+            transcode_max_offset = helpers.get_xml_attr(transcode_info, 'maxOffsetAvailable')
 
             transcode_details = {'transcode_key': helpers.get_xml_attr(transcode_info, 'key'),
                                  'transcode_throttled': int(helpers.get_xml_attr(transcode_info, 'throttled') == '1'),
@@ -1746,6 +1748,8 @@ class PmsConnect(object):
                                  'transcode_height': helpers.get_xml_attr(transcode_info, 'height'),  # Blank but keep backwards compatibility
                                  'transcode_container': helpers.get_xml_attr(transcode_info, 'container'),
                                  'transcode_protocol': helpers.get_xml_attr(transcode_info, 'protocol'),
+                                 'transcode_min_offset_available': int(round(helpers.cast_to_float(transcode_min_offset), 0)),
+                                 'transcode_max_offset_available': int(round(helpers.cast_to_float(transcode_max_offset), 0)),
                                  'transcode_hw_requested': int(helpers.get_xml_attr(transcode_info, 'transcodeHwRequested') == '1'),
                                  'transcode_hw_decode': helpers.get_xml_attr(transcode_info, 'transcodeHwDecoding'),
                                  'transcode_hw_decode_title': helpers.get_xml_attr(transcode_info, 'transcodeHwDecodingTitle'),
@@ -1771,6 +1775,8 @@ class PmsConnect(object):
                                  'transcode_height': '',
                                  'transcode_container': '',
                                  'transcode_protocol': '',
+                                 'transcode_min_offset_available': 0,
+                                 'transcode_max_offset_available': 0,
                                  'transcode_hw_requested': 0,
                                  'transcode_hw_decode': '',
                                  'transcode_hw_decode_title': '',
