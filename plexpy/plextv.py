@@ -277,13 +277,14 @@ class PlexTV(object):
 
         return request
 
-    def get_plextv_resources(self, include_https=False, output_format=''):
+    def get_plextv_resources(self, include_https=False, return_response=False, output_format=''):
         if include_https:
             uri = '/api/resources?includeHttps=1'
         else:
             uri = '/api/resources'
         request = self.request_handler.make_request(uri=uri,
                                                     request_type='GET',
+                                                    return_response=return_response,
                                                     output_format=output_format)
 
         return request
@@ -356,6 +357,7 @@ class PlexTV(object):
         for a in xml_head:
             own_details = {"user_id": helpers.get_xml_attr(a, 'id'),
                            "username": helpers.get_xml_attr(a, 'username'),
+                           "title": helpers.get_xml_attr(a, 'title'),
                            "thumb": helpers.get_xml_attr(a, 'thumb'),
                            "email": helpers.get_xml_attr(a, 'email'),
                            "is_active": 1,
@@ -383,7 +385,8 @@ class PlexTV(object):
 
         for a in xml_head:
             friend = {"user_id": helpers.get_xml_attr(a, 'id'),
-                      "username": helpers.get_xml_attr(a, 'title'),
+                      "username": helpers.get_xml_attr(a, 'username'),
+                      "title": helpers.get_xml_attr(a, 'title'),
                       "thumb": helpers.get_xml_attr(a, 'thumb'),
                       "email": helpers.get_xml_attr(a, 'email'),
                       "is_active": 1,
@@ -753,7 +756,16 @@ class PlexTV(object):
 
         return clean_servers
 
-    def get_plex_downloads(self):
+    def get_plex_downloads(self, update_channel):
+        plex_downloads = self.get_plextv_downloads(plexpass=(update_channel == 'beta'))
+
+        try:
+            return json.loads(plex_downloads)
+        except Exception as e:
+            logger.warn("Tautulli PlexTV :: Unable to load JSON for get_plex_updates: %s", e)
+            return {}
+
+    def get_plex_update(self):
         logger.debug("Tautulli PlexTV :: Retrieving current server version.")
 
         pms_connect = pmsconnect.PmsConnect()
@@ -762,12 +774,9 @@ class PlexTV(object):
         update_channel = pms_connect.get_server_update_channel()
 
         logger.debug("Tautulli PlexTV :: Plex update channel is %s." % update_channel)
-        plex_downloads = self.get_plextv_downloads(plexpass=(update_channel == 'beta'))
+        available_downloads = self.get_plex_downloads(update_channel=update_channel)
 
-        try:
-            available_downloads = json.loads(plex_downloads)
-        except Exception as e:
-            logger.warn("Tautulli PlexTV :: Unable to load JSON for get_plex_updates.")
+        if not available_downloads:
             return {}
 
         # Get the updates for the platform

@@ -90,6 +90,42 @@ users_list_table_options = {
         },
         {
             "targets": [3],
+            "data": "username",
+            "createdCell": function (td, cellData, rowData, row, col) {
+                if (cellData !== null && cellData !== '') {
+                    $(td).html(cellData);
+                }
+            },
+            "visible": false,
+            "width": "10%",
+            "className": "no-wrap"
+        },
+        {
+            "targets": [4],
+            "data": "title",
+            "createdCell": function (td, cellData, rowData, row, col) {
+                if (cellData !== null && cellData !== '') {
+                    $(td).html(cellData);
+                }
+            },
+            "visible": false,
+            "width": "10%",
+            "className": "no-wrap"
+        },
+        {
+            "targets": [5],
+            "data": "email",
+            "createdCell": function (td, cellData, rowData, row, col) {
+                if (cellData !== null && cellData !== '') {
+                    $(td).html(cellData);
+                }
+            },
+            "visible": false,
+            "width": "10%",
+            "className": "no-wrap"
+        },
+        {
+            "targets": [6],
             "data": "last_seen",
             "createdCell": function (td, cellData, rowData, row, col) {
                 if (cellData !== null && cellData !== '') {
@@ -103,7 +139,7 @@ users_list_table_options = {
             "className": "no-wrap"
         },
         {
-            "targets": [4],
+            "targets": [7],
             "data": "ip_address",
             "createdCell": function (td, cellData, rowData, row, col) {
                 if (cellData) {
@@ -121,7 +157,7 @@ users_list_table_options = {
             "className": "no-wrap modal-control-ip"
         },
         {
-            "targets": [5],
+            "targets": [8],
             "data": "platform",
             "createdCell": function (td, cellData, rowData, row, col) {
                 if (cellData !== null && cellData !== '') {
@@ -134,7 +170,7 @@ users_list_table_options = {
             "className": "no-wrap modal-control"
         },
         {
-            "targets": [6],
+            "targets": [9],
             "data":"player",
             "createdCell": function (td, cellData, rowData, row, col) {
                 if (cellData !== null && cellData !== '') {
@@ -155,7 +191,7 @@ users_list_table_options = {
             "className": "no-wrap modal-control"
         },
         {
-            "targets": [7],
+            "targets": [10],
             "data":"last_played",
             "createdCell": function (td, cellData, rowData, row, col) {
                 if (cellData !== null && cellData !== '') {
@@ -196,7 +232,7 @@ users_list_table_options = {
             "className": "datatable-wrap"
         },
         {
-            "targets": [8],
+            "targets": [11],
             "data": "plays",
             "createdCell": function (td, cellData, rowData, row, col) {
                 if (cellData !== null && cellData !== '') {
@@ -208,7 +244,7 @@ users_list_table_options = {
             "className": "no-wrap"
         },
         {
-            "targets": [9],
+            "targets": [12],
             "data": "duration",
             "createdCell": function (td, cellData, rowData, row, col) {
                 if (cellData !== null && cellData !== '') {
