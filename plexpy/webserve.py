@@ -5283,16 +5283,21 @@ class WebInterface(object):
             Returns:
                 json:
                     {"actors": [
-                        "Kit Harington",
                         "Emilia Clarke",
-                        "Isaac Hempstead-Wright",
+                        "Lena Headey",
+                        "Sophie Turner",
+                        "Kit Harington",
+                        "Peter Dinklage",
+                        "Nikolaj Coster-Waldau",
                         "Maisie Williams",
-                        "Liam Cunningham",
+                        "Iain Glen",
+                        "John Bradley",
+                        "Alfie Allen"
                      ],
                      "added_at": "1461572396",
                      "art": "/library/metadata/1219/art/1462175063",
-                     "audience_rating": "8",
-                     "audience_rating_image": "rottentomatoes://image.rating.upright",
+                     "audience_rating": "7.4",
+                     "audience_rating_image": "themoviedb://image.rating",
                      "banner": "/library/metadata/1219/banner/1462175063",
                      "collections": [],
                      "content_rating": "TV-MA",
@@ -5302,16 +5307,26 @@ class WebInterface(object):
                      "duration": "2998290",
                      "full_title": "Game of Thrones - The Red Woman",
                      "genres": [
-                        "Adventure",
+                        "Action/Adventure",
                         "Drama",
-                        "Fantasy"
+                        "Fantasy",
+                        "Romance"
                      ],
-                     "grandparent_guid": "com.plexapp.agents.thetvdb://121361?lang=en",
+                     "grandparent_guid": "plex://show/5d9c086c46115600200aa2fe",
+                     "grandparent_guids": [
+                         "imdb://tt0944947",
+                         "tmdb://1399",
+                         "tvdb://121361"
+                     ],
                      "grandparent_rating_key": "1219",
                      "grandparent_thumb": "/library/metadata/1219/thumb/1462175063",
                      "grandparent_title": "Game of Thrones",
-                     "guid": "com.plexapp.agents.thetvdb://121361/6/1?lang=en",
-                     "guids": [],
+                     "guid": "plex://episode/5d9c1276e9d5a1001f4ff2fa",
+                     "guids": [
+                         "imdb://tt3658014",
+                         "tmdb://1156503",
+                         "tvdb://5469015"
+                     ],
                      "labels": [],
                      "last_viewed_at": "1462165717",
                      "library_name": "TV Shows",
@@ -5401,18 +5416,21 @@ class WebInterface(object):
                      "media_type": "episode",
                      "original_title": "",
                      "originally_available_at": "2016-04-24",
-                     "parent_guid": "com.plexapp.agents.thetvdb://121361/6?lang=en",
+                     "parent_guid": "plex://season/602e67e61d3358002c4120f7",
+                     "parent_guids": [
+                         "tvdb://651357"
+                     ],
                      "parent_media_index": "6",
                      "parent_rating_key": "153036",
                      "parent_thumb": "/library/metadata/153036/thumb/1462175062",
-                     "parent_title": "",
-                     "rating": "7.8",
-                     "rating_image": "rottentomatoes://image.rating.ripe",
+                     "parent_title": "Season 6",
+                     "rating": "",
+                     "rating_image": "",
                      "rating_key": "153037",
                      "section_id": "2",
                      "sort_title": "Red Woman",
-                     "studio": "HBO",
-                     "summary": "Jon Snow is dead. Daenerys meets a strong man. Cersei sees her daughter again.",
+                     "studio": "Revolution Sun Studios",
+                     "summary": "The fate of Jon Snow is revealed. Daenerys meets a strong man. Cersei sees her daughter once again.",
                      "tagline": "",
                      "thumb": "/library/metadata/153037/thumb/1462175060",
                      "title": "The Red Woman",
@@ -6064,8 +6082,7 @@ class WebInterface(object):
                       "is_restricted": 0,
                       "keep_history": 1,
                       "row_id": 1,
-                      "server_token": "PU9cMuQZxJKFBtGqHk68",
-                      "shared_libraries": "1;2;3",
+                      "shared_libraries": ["1", "2", "3"],
                       "thumb": "https://plex.tv/users/k10w42309cynaopq/avatar",
                       "user_id": "133788",
                       "username": "Jon Snow"
@@ -6402,15 +6419,16 @@ class WebInterface(object):
 
             Returns:
                 json:
-                    {"code": 'US",
+                    {"city": "Mountain View",
+                     "code": "US",
+                     "continent": "NA",
                      "country": "United States",
-                     "region": "California",
-                     "city": "Mountain View",
-                     "postal_code": "94035",
-                     "timezone": "America/Los_Angeles",
                      "latitude": 37.386,
                      "longitude": -122.0838,
-                     "accuracy": 1000
+                     "postal_code": "94035",
+                     "region": "California",
+                     "timezone": "America/Los_Angeles",
+                     "accuracy": null
                      }
             ```
         """

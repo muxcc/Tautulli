@@ -393,7 +393,7 @@ class Users(object):
                           'last_seen': None
                           }
 
-        if user_id is None and not user and not email:
+        if user_id in (None, '') and not user and not email:
             return default_return
 
         user_details = self.get_user_details(user_id=user_id, user=user, email=email,
@@ -674,7 +674,7 @@ class Users(object):
         try:
             query = 'SELECT id AS row_id, user_id, username, friendly_name, thumb, custom_avatar_url, email, ' \
                     'is_active, is_admin, is_home_user, is_allow_sync, is_restricted, ' \
-                    'do_notify, keep_history, allow_guest, server_token, shared_libraries, ' \
+                    'do_notify, keep_history, allow_guest, shared_libraries, ' \
                     'filter_all, filter_movies, filter_tv, filter_music, filter_photos ' \
                     'FROM users WHERE deleted_user = 0'
             result = monitor_db.select(query=query)
@@ -684,6 +684,8 @@ class Users(object):
 
         users = []
         for item in result:
+            shared_libraries = tuple(item['shared_libraries'].split(';')) if item['shared_libraries'] else ()
+
             user = {'row_id': item['row_id'],
                     'user_id': item['user_id'],
                     'username': item['username'],
@@ -698,8 +700,7 @@ class Users(object):
                     'do_notify': item['do_notify'],
                     'keep_history': item['keep_history'],
                     'allow_guest': item['allow_guest'],
-                    'server_token': item['server_token'],
-                    'shared_libraries': item['shared_libraries'],
+                    'shared_libraries': shared_libraries,
                     'filter_all': item['filter_all'],
                     'filter_movies': item['filter_movies'],
                     'filter_tv': item['filter_tv'],
