@@ -1920,6 +1920,14 @@ def dbcheck():
             'ALTER TABLE users ADD COLUMN title TEXT'
         )
 
+    try:
+        result = c_db.execute('SELECT * FROM users WHERE friendly_name = username').fetchall()
+        if result:
+            logger.debug("Altering database. Resetting user friendly names equal to username.")
+            c_db.execute('UPDATE users SET friendly_name = NULL WHERE friendly_name = username')
+    except sqlite3.OperationalError:
+       pass
+
     # Upgrade notify_log table from earlier versions
     try:
         c_db.execute('SELECT poster_url FROM notify_log')
@@ -2039,7 +2047,7 @@ def dbcheck():
     # Upgrade newsletters table from earlier versions
     try:
         result = c_db.execute('SELECT SQL FROM sqlite_master WHERE type="table" AND name="newsletters"').fetchone()
-        if '"cron"\tTEXT NOT NULL DEFAULT "0 0 * * 0"' in result[0]:
+        if 'TEXT NOT NULL DEFAULT "0 0 * * 0"' in result[0]:
             logger.debug("Altering database. Updating default cron value in newsletters table.")
             c_db.execute(
                 'CREATE TABLE newsletters_temp (id INTEGER PRIMARY KEY AUTOINCREMENT, '
