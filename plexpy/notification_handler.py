@@ -402,7 +402,8 @@ def notify(notifier_id=None, notify_action=None, stream_data=None, timeline_data
                                                        body=body_string,
                                                        notify_action=notify_action,
                                                        parameters=parameters,
-                                                       agent_id=notifier_config['agent_id'])
+                                                       agent_id=notifier_config['agent_id'],
+                                                       as_json=notifier_config['config'].get('as_json', False))
 
     # Set the notification state in the db
     notification_id = set_notify_state(session=stream_data or timeline_data,
@@ -861,6 +862,8 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
         child_count = len(child_num)
         grandchild_count = ''
 
+        show_year = notify_params['year']
+
     elif ((manual_trigger or plexpy.CONFIG.NOTIFY_GROUP_RECENTLY_ADDED_PARENT)
           and notify_params['media_type'] in ('season', 'album')):
         show_name = notify_params['parent_title']
@@ -884,6 +887,8 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
         child_count = 1
         grandchild_count = len(grandchild_num)
 
+        show_year = notify_params['parent_year']
+
     else:
         show_name = notify_params['grandparent_title']
         season_name = notify_params['parent_title']
@@ -901,6 +906,7 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
         track_num00 = str(notify_params['media_index']).zfill(2)
         child_count = 1
         grandchild_count = 1
+        show_year = notify_params['grandparent_year']
 
     rating = notify_params['rating'] or notify_params['audience_rating']
 
@@ -1074,6 +1080,7 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
         'album_count': child_count,
         'track_count': grandchild_count,
         'year': notify_params['year'],
+        'show_year': show_year,
         'release_date': arrow.get(notify_params['originally_available_at']).format(date_format)
             if notify_params['originally_available_at'] else '',
         'air_date': arrow.get(notify_params['originally_available_at']).format(date_format)
@@ -1093,7 +1100,7 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
         'labels': ', '.join(notify_params['labels']),
         'collections': ', '.join(notify_params['collections']),
         'summary': notify_params['summary'],
-        'summary_short' : notify_params['summary'][:335]+" ...",
+        'summary_short' : notify_params['summary'][:331]+" ...",
         'tagline': notify_params['tagline'],
         'rating': rating,
         'critic_rating':  critic_rating,
@@ -1260,7 +1267,7 @@ def build_server_notify_params(notify_action=None, **kwargs):
     return available_params
 
 
-def build_notify_text(subject='', body='', notify_action=None, parameters=None, agent_id=None, test=False):
+def build_notify_text(subject='', body='', notify_action=None, parameters=None, agent_id=None, test=False, as_json=False):
     # Default subject and body text
     if agent_id == 15:
         default_subject = default_body = ''
@@ -1321,21 +1328,22 @@ def build_notify_text(subject='', body='', notify_action=None, parameters=None, 
             logger.exception("Tautulli NotificationHandler :: Unable to parse custom script arguments: %s. Using fallback." % e)
             script_args = []
 
-    elif agent_id == 25:
+    elif agent_id == 25 or as_json:
+        agent = 'MQTT' if agent_id == 23 else 'webhook'
         if subject:
             try:
                 subject = json.loads(subject)
             except ValueError as e:
-                logger.error("Tautulli NotificationHandler :: Unable to parse custom webhook json header data: %s. Using fallback." % e)
+                logger.error("Tautulli NotificationHandler :: Unable to parse custom %s json header data: %s. Using fallback." % (agent, e))
                 subject = ''
         if subject:
             try:
                 subject = json.dumps(helpers.traverse_map(subject, str_formatter))
             except LookupError as e:
-                logger.error("Tautulli NotificationHandler :: Unable to parse parameter %s in webhook header data. Using fallback." % e)
+                logger.error("Tautulli NotificationHandler :: Unable to parse parameter %s in %s header data. Using fallback." % (e, agent))
                 subject = ''
             except Exception as e:
-                logger.exception("Tautulli NotificationHandler :: Unable to parse custom webhook header data: %s. Using fallback." % e)
+                logger.exception("Tautulli NotificationHandler :: Unable to parse custom %s header data: %s. Using fallback." % (agent, e))
                 subject = ''
 
         if body:
