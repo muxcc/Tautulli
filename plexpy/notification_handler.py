@@ -338,9 +338,15 @@ def notify_custom_conditions(notifier_id=None, parameters=None):
 
             elif operator == 'begins with':
                 evaluated = parameter_value.startswith(tuple(values))
+            
+            elif operator == 'does not begin with':
+                evaluated = not parameter_value.startswith(tuple(values))
 
             elif operator == 'ends with':
                 evaluated = parameter_value.endswith(tuple(values))
+
+            elif operator == 'does not end with':
+                evaluated = not parameter_value.endswith(tuple(values))
 
             elif operator == 'is greater than':
                 evaluated = any(parameter_value > c for c in values)
@@ -1100,7 +1106,7 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
         'labels': ', '.join(notify_params['labels']),
         'collections': ', '.join(notify_params['collections']),
         'summary': notify_params['summary'],
-        'summary_short' : notify_params['summary'][:331]+" ...",
+        'summary_short' : notify_params['summary'][:332]+"...",
         'tagline': notify_params['tagline'],
         'rating': rating,
         'critic_rating':  critic_rating,
