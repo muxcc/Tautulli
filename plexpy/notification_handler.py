@@ -288,7 +288,7 @@ def notify_custom_conditions(notifier_id=None, parameters=None):
                 continue
 
             # Make sure the condition values is in a list
-            if isinstance(values, str):
+            if not isinstance(values, list):
                 values = [values]
 
             # Cast the condition values to the correct type
@@ -301,6 +301,9 @@ def notify_custom_conditions(notifier_id=None, parameters=None):
 
                 elif parameter_type == 'float':
                     values = [helpers.cast_to_float(v) for v in values]
+
+                else:
+                    raise ValueError
 
             except ValueError as e:
                 logger.error("Tautulli NotificationHandler :: {%s} Unable to cast condition '%s', values '%s', to type '%s'."
@@ -317,6 +320,9 @@ def notify_custom_conditions(notifier_id=None, parameters=None):
 
                 elif parameter_type == 'float':
                     parameter_value = helpers.cast_to_float(parameter_value)
+
+                else:
+                    raise ValueError
 
             except ValueError as e:
                 logger.error("Tautulli NotificationHandler :: {%s} Unable to cast parameter '%s', value '%s', to type '%s'."
@@ -338,7 +344,7 @@ def notify_custom_conditions(notifier_id=None, parameters=None):
 
             elif operator == 'begins with':
                 evaluated = parameter_value.startswith(tuple(values))
-            
+
             elif operator == 'does not begin with':
                 evaluated = not parameter_value.startswith(tuple(values))
 
@@ -652,7 +658,7 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
     # Check external guids
     if notify_params['media_type'] == 'episode':
         guids = notify_params['grandparent_guids']
-    elif notify_params['media_type'] in ('season', 'track'):
+    elif notify_params['media_type'] == 'season':
         guids = notify_params['parent_guids']
     else:
         guids = notify_params['guids']
@@ -704,8 +710,10 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
     if 'mbid://' in notify_params['guid'] or notify_params['musicbrainz_id']:
         if notify_params['media_type'] == 'artist':
             notify_params['musicbrainz_url'] = 'https://musicbrainz.org/artist/' + notify_params['musicbrainz_id']
-        else:
+        elif notify_params['media_type'] == 'album':
             notify_params['musicbrainz_url'] = 'https://musicbrainz.org/release/' + notify_params['musicbrainz_id']
+        else:
+            notify_params['musicbrainz_url'] = 'https://musicbrainz.org/track/' + notify_params['musicbrainz_id']
 
     # Get TheMovieDB info (for movies and tv only)
     if plexpy.CONFIG.THEMOVIEDB_LOOKUP and notify_params['media_type'] in ('movie', 'show', 'season', 'episode'):
@@ -1064,8 +1072,9 @@ def build_media_notify_params(notify_action=None, session=None, timeline=None, m
         'machine_id': notify_params['machine_id'],
         # Source metadata parameters
         'media_type': notify_params['media_type'],
-        'title': notify_params['full_title'],
         'library_name': notify_params['library_name'],
+        'title': notify_params['full_title'],
+        'edition_title': notify_params['edition_title'],
         'show_name': show_name,
         'season_name': season_name,
         'episode_name': episode_name,
