@@ -732,12 +732,12 @@ def validate_conditions(custom_conditions):
             validated_condition['parameter'] = parameter.lower()
             validated_condition['type'] = parameter_type
 
-        if operator:
-            if operator not in CUSTOM_CONDITION_TYPE_OPERATORS.get(parameter_type, []):
-                logger.error("Tautulli Notifiers :: Invalid operator '%s' for parameter '%s' in custom condition: %s" % (operator, parameter, condition))
-                return False
+            if operator:
+                if operator not in CUSTOM_CONDITION_TYPE_OPERATORS.get(parameter_type, []):
+                    logger.error("Tautulli Notifiers :: Invalid operator '%s' for parameter '%s' in custom condition: %s" % (operator, parameter, condition))
+                    return False
 
-            validated_condition['operator'] = operator
+                validated_condition['operator'] = operator
 
         if values:
             if not isinstance(values, list):
@@ -2175,6 +2175,7 @@ class LUNASEA(Notifier):
                 'player': pretty_metadata.parameters.get('player'),
                 'title': pretty_metadata.get_title(),
                 'poster_url': pretty_metadata.get_poster_url(),
+                'session_key': pretty_metadata.parameters.get('session_key'),
                 'session_id': pretty_metadata.parameters.get('session_id'),
                 'user_streams': pretty_metadata.parameters.get('user_streams'),
                 'remote_access_reason': pretty_metadata.parameters.get('remote_access_reason'),
