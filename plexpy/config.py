@@ -58,6 +58,7 @@ _CONFIG_DEFINITIONS = {
     'PMS_LOGS_FOLDER': (str, 'PMS', ''),
     'PMS_LOGS_LINE_CAP': (int, 'PMS', 1000),
     'PMS_NAME': (str, 'PMS', ''),
+    'PMS_NAME_OVERRIDE': (str, 'PMS', ''),
     'PMS_PORT': (int, 'PMS', 32400),
     'PMS_TOKEN': (str, 'PMS', ''),
     'PMS_SSL': (int, 'PMS', 0),
@@ -199,6 +200,7 @@ _CONFIG_DEFINITIONS = {
     'UPGRADE_FLAG': (int, 'Advanced', 0),
     'VERBOSE_LOGS': (int, 'Advanced', 1),
     'VERIFY_SSL_CERT': (bool_int, 'Advanced', 1),
+    'WATCHED_MARKER': (int, 'Monitoring', 3),
     'WEBSOCKET_MONITOR_PING_PONG': (int, 'Advanced', 0),
     'WEBSOCKET_CONNECTION_ATTEMPTS': (int, 'Advanced', 5),
     'WEBSOCKET_CONNECTION_TIMEOUT': (int, 'Advanced', 5),
@@ -298,7 +300,8 @@ SETTINGS = [
     'REFRESH_USERS_INTERVAL',
     'SHOW_ADVANCED_SETTINGS',
     'TIME_FORMAT',
-    'TV_WATCHED_PERCENT'
+    'TV_WATCHED_PERCENT',
+    'WATCHED_MARKER'
 ]
 
 CHECKED_SETTINGS = [

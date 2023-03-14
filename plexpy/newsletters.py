@@ -490,8 +490,6 @@ class Newsletter(object):
         if self.template_error:
             return newsletter_rendered
 
-        # Force Tautulli footer
-
         return newsletter_rendered
 
     def send(self):
@@ -583,7 +581,7 @@ class Newsletter(object):
             base_url = helpers.get_plexpy_url() + '/newsletter/'
 
         parameters = {
-            'server_name': plexpy.CONFIG.PMS_NAME,
+            'server_name': helpers.pms_name(),
             'start_date': self.start_date.format(date_format),
             'end_date': self.end_date.format(date_format),
             'current_year': self.start_date.year,
@@ -955,7 +953,8 @@ class RecentlyAdded(Newsletter):
              'description': 'Select the libraries to include in the newsletter.',
              'name': 'newsletter_config_incl_libraries',
              'input_type': 'selectize',
-             'select_options': self._get_sections_options()
+             'select_options': self._get_sections_options(),
+             'select_all': True
              }
         ]
 

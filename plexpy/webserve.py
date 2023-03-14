@@ -127,7 +127,7 @@ def serve_template(templatename, **kwargs):
                                error_handler=mako_error_handler)
 
     http_root = plexpy.HTTP_ROOT
-    server_name = plexpy.CONFIG.PMS_NAME
+    server_name = helpers.pms_name()
     cache_param = '?' + (plexpy.CURRENT_VERSION or common.RELEASE)
 
     _session = get_session_info()
@@ -213,7 +213,7 @@ class WebInterface(object):
             "pms_is_remote": plexpy.CONFIG.PMS_IS_REMOTE,
             "pms_ssl": plexpy.CONFIG.PMS_SSL,
             "pms_is_cloud": plexpy.CONFIG.PMS_IS_CLOUD,
-            "pms_name": plexpy.CONFIG.PMS_NAME,
+            "pms_name": helpers.pms_name(),
             "logging_ignore_interval": plexpy.CONFIG.LOGGING_IGNORE_INTERVAL
         }
 
@@ -282,7 +282,7 @@ class WebInterface(object):
         config = {
             "home_sections": plexpy.CONFIG.HOME_SECTIONS,
             "home_refresh_interval": plexpy.CONFIG.HOME_REFRESH_INTERVAL,
-            "pms_name": plexpy.CONFIG.PMS_NAME,
+            "pms_name": helpers.pms_name(),
             "pms_is_cloud": plexpy.CONFIG.PMS_IS_CLOUD,
             "update_show_changelog": plexpy.CONFIG.UPDATE_SHOW_CHANGELOG,
             "first_run_complete": plexpy.CONFIG.FIRST_RUN_COMPLETE
@@ -775,6 +775,7 @@ class WebInterface(object):
             Returns:
                 json:
                     {"draw": 1,
+                     "last_refreshed": 1678734670,
                      "recordsTotal": 82,
                      "recordsFiltered": 82,
                      "filtered_file_size": 2616760056742,
@@ -1897,7 +1898,7 @@ class WebInterface(object):
                 before (str):                   History before and including the date, "YYYY-MM-DD"
                 after (str):                    History after and including the date, "YYYY-MM-DD"
                 section_id (int):               2
-                media_type (str):               "movie", "episode", "track", "live"
+                media_type (str):               "movie", "episode", "track", "live", "collection", "playlist"
                 transcode_decision (str):       "direct play", "copy", "transcode",
                 guid (str):                     Plex guid for an item, e.g. "com.plexapp.agents.thetvdb://121361/6/1"
                 order_column (str):             "date", "friendly_name", "ip_address", "platform", "player",
@@ -1994,47 +1995,55 @@ class WebInterface(object):
             if user:
                 custom_where.append(['session_history.user', user])
         if 'rating_key' in kwargs:
-            rating_key = helpers.split_strip(kwargs.get('rating_key', ''))
-            if rating_key:
-                custom_where.append(['session_history.rating_key', rating_key])
+            if kwargs.get('media_type') in ('collection', 'playlist') and kwargs.get('rating_key'):
+                pms_connect = pmsconnect.PmsConnect()
+                result = pms_connect.get_item_children(rating_key=kwargs.pop('rating_key'), media_type=kwargs.pop('media_type'))
+                rating_keys = [child['rating_key'] for child in result['children_list']]
+                custom_where.append(['session_history_metadata.rating_key OR', rating_keys])
+                custom_where.append(['session_history_metadata.parent_rating_key OR', rating_keys])
+                custom_where.append(['session_history_metadata.grandparent_rating_key OR', rating_keys])
+            else:
+                rating_key = helpers.split_strip(kwargs.pop('rating_key', ''))
+                if rating_key:
+                    custom_where.append(['session_history.rating_key', rating_key])
         if 'parent_rating_key' in kwargs:
-            rating_key = helpers.split_strip(kwargs.get('parent_rating_key', ''))
+            rating_key = helpers.split_strip(kwargs.pop('parent_rating_key', ''))
             if rating_key:
                 custom_where.append(['session_history.parent_rating_key', rating_key])
         if 'grandparent_rating_key' in kwargs:
-            rating_key = helpers.split_strip(kwargs.get('grandparent_rating_key', ''))
+            rating_key = helpers.split_strip(kwargs.pop('grandparent_rating_key', ''))
             if rating_key:
                 custom_where.append(['session_history.grandparent_rating_key', rating_key])
         if 'start_date' in kwargs:
-            start_date = helpers.split_strip(kwargs.get('start_date', ''))
+            start_date = helpers.split_strip(kwargs.pop('start_date', ''))
             if start_date:
                 custom_where.append(['strftime("%Y-%m-%d", datetime(started, "unixepoch", "localtime"))', start_date])
         if 'before' in kwargs:
-            before = helpers.split_strip(kwargs.get('before', ''))
+            before = helpers.split_strip(kwargs.pop('before', ''))
             if before:
                 custom_where.append(['strftime("%Y-%m-%d", datetime(started, "unixepoch", "localtime")) <', before])
         if 'after' in kwargs:
-            after = helpers.split_strip(kwargs.get('after', ''))
+            after = helpers.split_strip(kwargs.pop('after', ''))
             if after:
                 custom_where.append(['strftime("%Y-%m-%d", datetime(started, "unixepoch", "localtime")) >', after])
         if 'reference_id' in kwargs:
-            reference_id = helpers.split_strip(kwargs.get('reference_id', ''))
+            reference_id = helpers.split_strip(kwargs.pop('reference_id', ''))
             if reference_id:
                 custom_where.append(['session_history.reference_id', reference_id])
         if 'section_id' in kwargs:
-            section_id = helpers.split_strip(kwargs.get('section_id', ''))
+            section_id = helpers.split_strip(kwargs.pop('section_id', ''))
             if section_id:
                 custom_where.append(['session_history.section_id', section_id])
         if 'media_type' in kwargs:
-            media_type = helpers.split_strip(kwargs.get('media_type', ''))
+            media_type = helpers.split_strip(kwargs.pop('media_type', ''))
             if media_type and 'all' not in media_type:
                 custom_where.append(['media_type_live', media_type])
         if 'transcode_decision' in kwargs:
-            transcode_decision = helpers.split_strip(kwargs.get('transcode_decision', ''))
+            transcode_decision = helpers.split_strip(kwargs.pop('transcode_decision', ''))
             if transcode_decision and 'all' not in transcode_decision:
                 custom_where.append(['session_history_media_info.transcode_decision', transcode_decision])
         if 'guid' in kwargs:
-            guid = helpers.split_strip(kwargs.get('guid', '').split('?')[0])
+            guid = helpers.split_strip(kwargs.pop('guid', '').split('?')[0])
             if guid:
                 custom_where.append(['session_history_metadata.guid', ['LIKE ' + g + '%' for g in guid]])
 
@@ -4431,10 +4440,10 @@ class WebInterface(object):
 
     @cherrypy.expose
     @requireAuth()
-    def item_watch_time_stats(self, rating_key=None, **kwargs):
+    def item_watch_time_stats(self, rating_key=None, media_type=None, **kwargs):
         if rating_key:
             item_data = datafactory.DataFactory()
-            result = item_data.get_watch_time_stats(rating_key=rating_key)
+            result = item_data.get_watch_time_stats(rating_key=rating_key, media_type=media_type)
         else:
             result = None
 
@@ -4446,10 +4455,10 @@ class WebInterface(object):
 
     @cherrypy.expose
     @requireAuth()
-    def item_user_stats(self, rating_key=None, **kwargs):
+    def item_user_stats(self, rating_key=None, media_type=None, **kwargs):
         if rating_key:
             item_data = datafactory.DataFactory()
-            result = item_data.get_user_stats(rating_key=rating_key)
+            result = item_data.get_user_stats(rating_key=rating_key, media_type=media_type)
         else:
             result = None
 
@@ -4463,7 +4472,7 @@ class WebInterface(object):
     @cherrypy.tools.json_out()
     @requireAuth(member_of("admin"))
     @addtoapi()
-    def get_item_watch_time_stats(self, rating_key=None, grouping=None, query_days=None, **kwargs):
+    def get_item_watch_time_stats(self, rating_key=None, media_type=None, grouping=None, query_days=None, **kwargs):
         """  Get the watch time stats for the media item.
 
             ```
@@ -4471,6 +4480,7 @@ class WebInterface(object):
                 rating_key (str):       Rating key of the item
 
             Optional parameters:
+                media_type (str):       Media type of the item (only required for a collection)
                 grouping (int):         0 or 1
                 query_days (str):       Comma separated days, e.g. "1,7,30,0"
 
@@ -4504,7 +4514,9 @@ class WebInterface(object):
 
         if rating_key:
             item_data = datafactory.DataFactory()
-            result = item_data.get_watch_time_stats(rating_key=rating_key, grouping=grouping,
+            result = item_data.get_watch_time_stats(rating_key=rating_key,
+                                                    media_type=media_type,
+                                                    grouping=grouping,
                                                     query_days=query_days)
             if result:
                 return result
@@ -4518,7 +4530,7 @@ class WebInterface(object):
     @cherrypy.tools.json_out()
     @requireAuth(member_of("admin"))
     @addtoapi()
-    def get_item_user_stats(self, rating_key=None, grouping=None, **kwargs):
+    def get_item_user_stats(self, rating_key=None, media_type=None, grouping=None, **kwargs):
         """  Get the user stats for the media item.
 
             ```
@@ -4526,6 +4538,7 @@ class WebInterface(object):
                 rating_key (str):       Rating key of the item
 
             Optional parameters:
+                media_type (str):       Media type of the item (only required for a collection)
                 grouping (int):         0 or 1
 
             Returns:
@@ -4554,7 +4567,9 @@ class WebInterface(object):
 
         if rating_key:
             item_data = datafactory.DataFactory()
-            result = item_data.get_user_stats(rating_key=rating_key, grouping=grouping)
+            result = item_data.get_user_stats(rating_key=rating_key,
+                                              media_type=media_type,
+                                              grouping=grouping)
             if result:
                 return result
             else:
@@ -5339,6 +5354,24 @@ class WebInterface(object):
                      "last_viewed_at": "1462165717",
                      "library_name": "TV Shows",
                      "live": 0,
+                     "markers": [
+                        {
+                             "id": 908,
+                             "type": "credits",
+                             "start_time_offset": 2923863,
+                             "end_time_offset": 2998197,
+                             "first": true,
+                             "final": true
+                        },
+                        {
+                             "id": 908,
+                             "type": "intro",
+                             "start_time_offset": 1622,
+                             "end_time_offset": 109135,
+                             "first": null,
+                             "final": null
+                        }
+                     ],
                      "media_index": "1",
                      "media_info": [
                          {
@@ -6185,7 +6218,8 @@ class WebInterface(object):
     @requireAuth(member_of("admin"))
     @addtoapi()
     def get_home_stats(self, grouping=None, time_range=30, stats_type='plays',
-                       stats_start=0, stats_count=10, stat_id='', **kwargs):
+                       stats_start=0, stats_count=10, stat_id='',
+                       section_id=None, user_id=None, **kwargs):
         """ Get the homepage watch statistics.
 
             ```
@@ -6201,6 +6235,8 @@ class WebInterface(object):
                 stat_id (str):          A single stat to return, 'top_movies', 'popular_movies',
                                         'top_tv', 'popular_tv', 'top_music', 'popular_music', 'top_libraries',
                                         'top_users', 'top_platforms', 'last_watched', 'most_concurrent'
+                section_id (int):       The id of the Plex library section
+                user_id (int):          The id of the Plex user
 
             Returns:
                 json:
@@ -6282,7 +6318,9 @@ class WebInterface(object):
                                              stats_type=stats_type,
                                              stats_start=stats_start,
                                              stats_count=stats_count,
-                                             stat_id=stat_id)
+                                             stat_id=stat_id,
+                                             section_id=section_id,
+                                             user_id=user_id)
 
         if result:
             return result
