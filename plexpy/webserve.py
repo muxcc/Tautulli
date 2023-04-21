@@ -931,6 +931,9 @@ class WebInterface(object):
         section_ids = set(get_file_sizes_hold['section_ids'])
         rating_keys = set(get_file_sizes_hold['rating_keys'])
 
+        section_id = helpers.cast_to_int(section_id)
+        rating_key = helpers.cast_to_int(rating_key)
+
         if (section_id and section_id not in section_ids) or (rating_key and rating_key not in rating_keys):
             if section_id:
                 section_ids.add(section_id)
@@ -1917,7 +1920,6 @@ class WebInterface(object):
                      "filter_duration": "10 hrs 12 mins",
                      "data":
                         [{"date": 1462687607,
-                          "duration": 263,
                           "friendly_name": "Mother of Dragons",
                           "full_title": "Game of Thrones - The Red Woman",
                           "grandparent_rating_key": 351,
@@ -1939,6 +1941,7 @@ class WebInterface(object):
                           "paused_counter": 0,
                           "percent_complete": 84,
                           "platform": "Windows",
+                          "play_duration": 263,
                           "product": "Plex for Windows",
                           "player": "Castle-PC",
                           "rating_key": 4348,

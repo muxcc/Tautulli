@@ -1617,7 +1617,7 @@ class PmsConnect(object):
         else:
             return metadata
 
-    def get_metadata_children_details(self, rating_key='', get_children=False):
+    def get_metadata_children_details(self, rating_key='', get_children=False, media_type=None, section_id=None):
         """
         Return processed and validated metadata list for all children of requested item.
 
@@ -1625,13 +1625,21 @@ class PmsConnect(object):
 
         Output: array
         """
-        metadata = self.get_metadata_children(str(rating_key), output_format='xml')
+        if media_type == 'artist':
+            sort_type = '&artist.id={}&type=9'.format(rating_key)
+            xml_head = self.fetch_library_list(
+                section_id=str(section_id),
+                sort_type=sort_type,
+                output_format='xml'
+            )
+        else:
+            metadata = self.get_metadata_children(str(rating_key), output_format='xml')
 
-        try:
-            xml_head = metadata.getElementsByTagName('MediaContainer')
-        except Exception as e:
-            logger.warn("Tautulli Pmsconnect :: Unable to parse XML for get_metadata_children: %s." % e)
-            return []
+            try:
+                xml_head = metadata.getElementsByTagName('MediaContainer')
+            except Exception as e:
+                logger.warn("Tautulli Pmsconnect :: Unable to parse XML for get_metadata_children: %s." % e)
+                return []
 
         metadata_list = []
 
@@ -2008,7 +2016,7 @@ class PmsConnect(object):
                                 'stream_subtitle_location': helpers.get_xml_attr(subtitle_stream_info, 'location'),
                                 'stream_subtitle_language': helpers.get_xml_attr(subtitle_stream_info, 'language'),
                                 'stream_subtitle_language_code': helpers.get_xml_attr(subtitle_stream_info, 'languageCode'),
-                                'stream_subtitle_decision': helpers.get_xml_attr(subtitle_stream_info, 'decision'),
+                                'stream_subtitle_decision': helpers.get_xml_attr(subtitle_stream_info, 'decision') or transcode_details['subtitle_decision'],
                                 'stream_subtitle_transient': int(helpers.get_xml_attr(subtitle_stream_info, 'transient') == '1')
                                 }
         else:
